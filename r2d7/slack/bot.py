@@ -5,10 +5,12 @@ MIT Licensed
 """
 import time
 import logging
+import threading
 import traceback
 
 from websocket._exceptions import WebSocketConnectionClosedException
 
+from r2d7.core import UserError
 from r2d7.slack.clients import SlackClients
 from r2d7.slack.event_handler import RtmEventHandler
 
@@ -19,20 +21,20 @@ class Messager():
     def __init__(self, clients):
         self.clients = clients
 
-    def send_message(self, channel_id, msg):
+    def send_message(self, channel_id, msg, thread=None):
         # in the case of Group and Private channels, RTM channel payload is a complex dictionary
         if isinstance(channel_id, dict):
             channel_id = channel_id['id']
         logger.debug('Sending msg: %s to channel: %s' % (msg, channel_id))
         self.clients.web.chat.post_message(
-            channel_id, msg, as_user=True, unfurl_links=False)
+            channel_id, msg, as_user=True, unfurl_links=False, thread_ts=thread)
 
     def write_error(self, channel_id, err_msg):
         self.send_message(channel_id, ':alarm: ' + err_msg)
 
 
-class SlackBot(object):
-    def __init__(self, droid, token=None, debug=False):
+class SlackBot(threading.Thread):
+    def __init__(self, droid, name=None, token=None, debug=False):
         """Creates Slacker Web and RTM clients with API Bot User token.
 
         Args:
@@ -42,24 +44,13 @@ class SlackBot(object):
         self.last_ping = 0
         self.keep_running = True
         self.debug = debug
+        self.name = name
         if token is not None:
             self.clients = SlackClients(token)
         self.droid = droid
 
-    def start(self, resource):
-        """Creates Slack Web and RTM clients for the given Resource
-        using the provided API tokens and configuration, then connects websocket
-        and listens for RTM events.
-
-        Args:
-            resource (dict of Resource JSON): See message payloads - https://beepboophq.com/docs/article/resourcer-api
-        """
-        logger.debug('Starting bot for resource: {}'.format(resource))
-        if 'resource' in resource and 'SlackBotAccessToken' in resource['resource']:
-            res_access_token = resource['resource']['SlackBotAccessToken']
-            self.clients = SlackClients(res_access_token)
-        else:
-            logger.debug("No resource or access token found.")
+    def run(self):
+        logger.info('Running bot for: {}'.format(self.name))
 
         if self.clients.rtm.rtm_connect():
             try:
@@ -86,6 +77,12 @@ class SlackBot(object):
                     for event in self.clients.rtm.rtm_read():
                         try:
                             event_handler.handle(event)
+                        except UserError as error:
+                            logging.debug(
+                                'User error generated', exc_info=True)
+                            err_msg = f"Error: {error}"
+                            messager.send_message(event['channel'], err_msg)
+                            continue
                         except Exception:
                             logging.exception('Unexpected error:')
                             if self.debug:
@@ -109,7 +106,7 @@ class SlackBot(object):
             self.clients.rtm.server.ping()
             self.last_ping = now
 
-    def stop(self, resource):
+    def stop(self, timeout=False):
         """Stop any polling loops on clients, clean up any resources,
         close connections if possible.
 

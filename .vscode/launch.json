@@ -1,0 +1,52 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Python: Slack bot",
+            "type": "python",
+            "request": "launch",
+            "envFile": "${workspaceFolder}/env.list",
+            "module": "r2d7.slack",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}"
+            }
+        },
+        {
+            "name": "Python: Discord bot",
+            "type": "python",
+            "request": "launch",
+            "envFile": "${workspaceFolder}/env.list",
+            "module": "r2d7.discord",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}"
+            }
+        },
+        {
+            "name": "Python: Both bots",
+            "type": "python",
+            "request": "launch",
+            "envFile": "${workspaceFolder}/env.list",
+            "module": "r2d7.bots",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}"
+            }
+        },
+        {
+            "name": "Python: Generate Emoji",
+            "type": "python",
+            "request": "launch",
+            "cwd": "${workspaceFolder}/icons",
+            "program": "${workspaceFolder}/icons/generate_emoji.py"
+        },
+        {
+            "name": "Python: Generate Discord Emoji",
+            "type": "python",
+            "request": "launch",
+            "cwd": "${workspaceFolder}/icons",
+            "program": "${workspaceFolder}/icons/generate_discord_emoji.py"
+        }
+    ]
+}

@@ -2,101 +2,172 @@ import os
 
 from PIL import Image, ImageFont, ImageDraw, ImageOps
 
+
+class Icon:
+    default_colour = ('', (0, 0, 0))
+
+    def __init__(self, letter):
+        try:
+            self.letter = letter.letter
+            self.colours = letter.colours
+            self.size = letter.size
+        except AttributeError:
+            self.letter = letter
+            self.colours = [self.default_colour]
+            self.size = 128
+
+    @staticmethod
+    def factory(name=None, colour=None, size=None):
+        class Temp(Icon):
+            def __init__(self, letter):
+                super().__init__(letter)
+                if colour and name:
+                    self.colours.append((name, colour))
+                if size:
+                    self.size = size
+        return Temp
+
+Red = Icon.factory('red', "#EF232B")
+Green = Icon.factory('green', "#6BBE44")
+Yellow = Icon.factory('yellow', "#B6B335")
+Blue = Icon.factory('blue', "#7ED3E5")
+Orange = Icon.factory('orange', "#E5B922")
+Purple = Icon.factory('purple', "#C39DC9")
+
+Medium = Icon.factory(size=100)
+
 fonts = {
     'xwing-miniatures.ttf': {
-        'attack-turret': "$",
-        'attack-frontback': '<',
-        'attack-180': '>',
-        'attack': '%',
-        'energy': '(',
-        'epic': ')',
-        'agility': 'e',
-        'hull': '&',
-        'xshield': '*',
+        # Stats
+        'agility': Green('^'),
+        'attack': Red('%'),
+        'charge': Orange('g'),
+        'hull': Yellow('&'),
+        'forcecharge': Purple('h'),
+        'shield': Blue('*'),
+        # Arcs
+        'bullseyearc': Red("}"),
+        'doubleturretarc': Red('q'),
+        'frontarc': Red('{'),
+        'fullfrontarc': Red('~'),
+        'fullreararc': Red('¡'),
+        'leftarc': Red('£'),
+        'reararc': Red('|'),
+        'rightarc': Red('¢'),
+        'singleturretarc': Red('p'),
+        # Slots
         'astromech': "A",
-        'xbomb': "B",
+        'device': "B",
         'cannon': "C",
-        'elite': "E",
         'cargo': "G",
+        'configuration': 'n',
+        'crew': "W",
+        'forcepower': 'F',
+        'gunner': 'Y',
         'hardpoint': "H",
         'illicit': "I",
         'missile': "M",
-        'torpedo': "P",
-        'rotatearc': "R",
-        'system': "S",
+        'modification': "m",
+        'sensor': "S",
+        'tacticalrelay': 'Z',
+        'talent': "E",
         'team': "T",
-        'turret': "U",
-        'salvagedastromech': "V",
-        'crew': "W",
         'tech': 'X',
-        'boost': "b",
+        'title': "t",
+        'torpedo': "P",
+        'turret': "U",
+        # Actions
+        'barrelroll': Purple(Red("r")),
+        'boost': Purple(Red("b")),
+        'calculate': Purple(Red('a')),
+        'cloak': Purple(Red("k")),
+        'coordinate': Purple(Red("o")),
+        'evade': Purple(Red("e")),
+        'focus': Purple(Red("f")),
+        'jam': Purple(Red("j")),
+        'targetlock': Purple(Red("l")),
+        'recover': Purple(Red("v")),
+        'reinforce': Purple(Red("i")),
+        'reload': Purple(Red("=")),
+        'rotatearc': Purple(Red("R")),
+        'slam': Purple(Red("s")),
+        # Other
+        #TODO make this smaller so it matches the cards
+        'linked': '>',
         'crit': "c",
         'hit': "d",
-        'evade': "e",
-        'focus': "f",
-        'reinforce': "i",
-        'jam': "j",
-        'cloak': "k",
-        'targetlock': "l",
-        'modification': "m",
-        'coordinate': "o",
-        'barrelroll': "r",
-        'slam': "s",
-        'title': "t",
-        'unique': "u",
-        'recover': "v",
-        # 'condition': '\u00B0',
+        'rangebonusindicator': Red('?'),
     },
     "xwing-miniatures-ships.ttf": {
-        'gr75mediumtransport': "1",
-        'cr90corvette': "2",
-        'raiderclasscorvette': "3",
-        'gozanticlasscruiser': "4",
-        'croccruiser': "5",
-        'tieadvanced': "A",
-        'tiebomber': "B",
-        'tiedefender': "D",
-        'tiefighter': "F",
-        'vcx100': "G",
-        'scurrgh6bomber': "H",
-        'tieinterceptor': "I",
-        'lancerclasspursuitcraft': "L",
-        'protectoratestarfighter': "M",
-        'tiepunisher': "N",
-        'tiefofighter': "O",
-        'tiephantom': "P",
-        'tieadvprototype': "R",
-        'tiesffighter': "S",
-        'tiestriker': 'T',
-        'upsilonclassshuttle': 'U',
-        'awing': "a",
-        'bwing': "b",
-        'arc170': "c",
-        'vt49decimator': "d",
-        'ewing': "e",
-        'firespray31': "f",
+        'aggressorassaultfighter': "i",
+        'alphaclassstarwing': "&",
+        'arc170starfighter': "c",
         'attackshuttle': "g",
-        'hwk290': "h",
-        'ig2000': "i",
-        'aggressor': "i",
-        'kwing': "k",
-        'lambdaclassshuttle': "l",
-        'yt1300': "m",
+        'auzituckgunship': "@",
+        'rz1awing': "a",
+        'asf01bwing': "b",
+        'mg100starfortress': "Z",
+        'cr90corvette': "2",
+        'croccruiser': "5",
+        'ewing': "e",
+        'firesprayclasspatrolcraft': "f",
         'g1astarfighter': "n",
-        'yt2400': "o",
+        'gozanticlasscruiser': "4",
+        'gr75mediumtransport': "1",
+        'hwk290lightfreighter': "h",
+        'ig2000': "i",
         'jumpmaster5000': "p",
-        'quadjumper': "q",
         'kihraxzfighter': "r",
+        'btls8kwing': "k",
+        'm12lkimogilafighter': "K",
+        'lambdaclasst4ashuttle': "l",
+        'lancerclasspursuitcraft': "L",
         'm3ainterceptor': "s",
-        'yv666': "t",
-        'uwing': 'u',
-        'starviper': "v",
+        'fangfighter': "M",
+        'quadrijettransferspacetug': "q",
+        'raiderclasscorvette': "3",
+        'scurrgh6bomber': "H",
+        'sheathipedeclassshuttle': "%",
+        'starviperclassattackplatform': "v",
         't70xwing': "w",
-        'xwing': "x",
-        'ywing': "y",
-        'z95headhunter': "z",
-        'auzituckgunship': '@',
-        'tieaggressor': '`',
+        'tieadvancedx1': "A",
+        'tieadvancedv1': "R",
+        'tieagaggressor': "`",
+        'tiesabomber': "B",
+        'tieddefender': "D",
+        'tielnfighter': "F",
+        'tiefofighter': "O",
+        'tieinterceptor': "I",
+        'tiephphantom': "P",
+        'tiecapunisher': "N",
+        'tiereaper': "V",
+        'tiesffighter': "S",
+        'tievnsilencer': "$",
+        'tieskstriker': "T",
+        'upsilonclasscommandshuttle': "U",
+        'ut60duwing': "u",
+        'vcx100lightfreighter': "G",
+        'vt49decimator': "d",
+        't65xwing': "x",
+        'modifiedyt1300lightfreighter': "m",
+        'yt2400lightfreighter': "o",
+        'yv666lightfreighter': "t",
+        'btla4ywing': "y",
+        'z95af4headhunter': "z",
+        'customizedyt1300lightfreighter': 'W',
+        'escapecraft': 'X',
+        'modifiedtielnfighter': 'C',
+        'rz2awing': 'E',
+        'scavengedyt1300': 'Y',
+        'belbullab22starfighter': '[',
+        'delta7aethersprite': '\\',
+        'sithinfiltrator': ']',
+        'v19torrentstarfighter': '^',
+        'vultureclassdroidfighter': '_',
+        'resistancetransport': '{',
+        'resistancetransportpod': '}',
+        'hyenaclassdroidbomber': '=',
+        'nabooroyaln1starfighter': '<',
     }
 }
 
@@ -107,26 +178,35 @@ def main():
         os.mkdir('emoji')
 
     for font, glyphs in fonts.items():
-        font = ImageFont.truetype(font, 128)
         for name, glyph in glyphs.items():
-            im = Image.new("RGBA", (300, 300), (255, 255, 255, 0))
+            try:
+                colours = glyph.colours
+                font_size = glyph.size
+                glyph = glyph.letter
+            except AttributeError:
+                colours = [Icon.default_colour]
+                font_size = 128
 
-            draw = ImageDraw.Draw(im)
-            draw.text((50, 50), glyph, font=font, fill=(0, 0, 0))
+            imfont = ImageFont.truetype(font, font_size)
+            for colour_name, colour in colours:
+                im = Image.new("RGBA", (300, 300), (255, 255, 255, 0))
 
-            # remove unneccessory whitespaces if needed
-            im = im.crop(ImageOps.invert(im.convert('RGB')).getbbox())
+                draw = ImageDraw.Draw(im)
+                draw.text((50, 50), glyph, font=imfont, fill=colour)
 
-            # im = ImageOps.invert(im)
-            im.thumbnail(size, Image.ANTIALIAS)
+                # remove unneccessory whitespaces if needed
+                im = im.crop(ImageOps.invert(im.convert('RGB')).getbbox())
 
-            background = Image.new('RGBA', size, (255, 255, 255, 0))
-            background.paste(
-                im,
-                ((size[0] - im.size[0]) // 2, (size[1] - im.size[1]) // 2))
+                # im = ImageOps.invert(im)
+                im.thumbnail(size, Image.ANTIALIAS)
 
-            # write into file
-            background.save("emoji/{}.png".format(name))
+                background = Image.new('RGBA', size, (255, 255, 255, 0))
+                background.paste(
+                    im,
+                    ((size[0] - im.size[0]) // 2, (size[1] - im.size[1]) // 2))
+
+                # write into file
+                background.save(f"emoji/{colour_name}{name}.png")
 
 if __name__ == '__main__':
     main()

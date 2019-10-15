@@ -6,150 +6,72 @@ from r2d7.slackdroid import SlackDroid
 
 get_xws_tests = (
     (
-        "http://geordanr.github.io/xwing/?f=Scum%20and%20Villainy&d=v4!s!248::50:-1:&sn=Sunny%20B!&obs=",
-        {"faction":"scum","pilots":[{"name":"sunnybounder","ship":"m3ainterceptor","upgrades":{"title":["lightscykinterceptor"]}}],"vendor":{"yasb":{"builder":"(Yet Another) X-Wing Miniatures Squad Builder","builder_url":"https://geordanr.github.io/xwing","link":"https://geordanr.github.io/xwing/?f=Scum%20and%20Villainy&d=v4!s!248::50:-1:&sn=Sunny%20B!&obs="}},"version":"0.3.0","name":"Sunny B!"},
+        "https://raithos.github.io/?f=Scum%20and%20Villainy&d=v4!s!138:-1,168:-1:-1:U.-1&sn=Sunny%20B!&obs=",
+        {"faction": "scumandvillainy", "name": "Sunny B!", "points": 30, "pilots": [{"id": "sunnybounder", "ship": "m3ainterceptor", "points": 30, "upgrades": {"hardpoint": ["hardpointcannon"]}}], "vendor": {
+            "yasb": {"builder": "(Yet Another) X-Wing Miniatures Squad Builder", "builder_url": "https://raithos.github.io", "link": "https://raithos.github.io/?f=Scum%20and%20Villainy&d=v4!s!138:-1,168:-1:-1:U.-1&sn=Sunny%20B!&obs="}}, "version": "2.0.0"},
     ),
     (
-        "http://xwing-builder.co.uk/view/747933/sunny-b",
-        {
-            "version": "0.3.0",
-            "name": "Sunny B!",
-            "faction": "scum",
-            "points": 12,
-            "pilots": [
-                {
-                    "name": "sunnybounder",
-                    "ship": "m3ainterceptor",
-                    "points": 12,
-                    "upgrades": {
-                        "title": [
-                            "lightscykinterceptor"
-                        ]
-                    }
-                }
-            ],
-            "vendor": {
-                "voidstate": {
-                    "squadron_id": 747933,
-                    "link": "http://xwing-builder.co.uk/view/747933/sunny-b",
-                    "builder": "Voidstate's Unofficial X-Wing Squadron Builder",
-                    "builder_link": "http://xwing-builder.co.uk/build"
-                }
-            }
-        }
+        "https://squadbuilder.fantasyflightgames.com/squad-preview/d0966452-ec40-40d4-a3cd-ff384e1dcf70",
+        {"faction": "scumandvillainy", "pilots": [{"id": "sunnybounder", "ship": "m3ainterceptor", "upgrades": {
+            "cannon": ["heavylasercannon"]}, "points":34}], "name": "Sunny B!", "description": "", "points": 34, 'vendor': {'sb2xws': {'builder': 'SB2XWS',  'url': 'http://sb2xws.herokuapp.com/translate/d0966452-ec40-40d4-a3cd-ff384e1dcf70'}}}
     ),
     (
-        'http://x-wing.fabpsb.net/permalink.php?sq=z63f47',
-        {"description":"","faction":"scum","pilots":[{"name":"sunnybounder","points":12,"ship":"m3ascykinterceptor","upgrades":{"title":["lightscykinterceptor"]}}],"points":12,"vendor":{"fab":{"builder":"Fabs Squadrons generator","builder_link":"http://x-wing.fabpsb.net/","link":"http://x-wing.fabpsb.net/permalink?sq=z63f47"}},"version":"1.0.0"}
+        "https://devjonny.github.io/xwing2estopgap/scum?id=84b6758e-459f-4abd-a1c3-07f43d211af3",
+        {"name": "Sunny B!", "faction": "scumandvillainy", "pilots": [{"id": "sunnybounder", "upgrades": {"cannon": [
+            "heavylasercannon"]}}], "vendor": {"stopgapp": {"builder": "Stop Gapp builder by DevJonny and dbouckley"}}}
+    ),
+    (
+        "https://launch-bay-next.herokuapp.com/print?lbx=%27New%20Squadron%27.34.3.0.(44.188.(3.256))&mode=full",
+        {"name": "New Squadron", "faction": "scumandvillainy", "pilots": [{"ship": "m3ainterceptor", "upgrades": {"cannon": ["heavylasercannon"]}, "id":"sunnybounder"}], "version": "2.0.0", "points": 34, "vendor": {
+            "lbn": {"builder": "Launch Bay Next", "builder_url": "https://launch-bay-next.herokuapp.com", "link": "https://launch-bay-next.herokuapp.com/print?lbx='New%20Squadron'.34.3.0.(44.188.(3.256))"}}},
     ),
 )
-
 @pytest.mark.parametrize('url, expected', get_xws_tests)
 def test_get_xws(testbot, url, expected):
     assert testbot.get_xws(url) == expected
 
 print_xws_tests = (
-    (
-        {"faction":"scum","pilots":[{"name":"sunnybounder","ship":"m3ainterceptor","upgrades":{"title":["lightscykinterceptor"]}}],"vendor":{"yasb":{"builder":"(Yet Another) X-Wing Miniatures Squad Builder","builder_url":"https://geordanr.github.io/xwing","link":"https://geordanr.github.io/xwing/?f=Scum%20and%20Villainy&d=v4!s!248::50:-1:&sn=Sunny%20B!&obs="}},"version":"0.3.0","name":"Sunny B!"},
+    pytest.param(
+        {"faction": "scum", "name": "Sunny B!", "pilots": [{"name": "sunnybounder", "ship": "m3ainterceptor", "upgrades": {"hardpoint": ["hardpointcannon"], "cannon":["heavylasercannon"]}}], "vendor": {"yasb": {
+            "builder": "(Yet Another) X-Wing Miniatures Squad Builder", "builder_url": "https://raithos.github.io/xwing", "link": "https://raithos.github.io/xwing/?f=Scum%20and%20Villainy&d=v4!s!138:-1,168:-1:-1:U.10&sn=Sunny%20B!&obs="}}, "version": "0.3.0"},
         [
-            ':scum: *<https://geordanr.github.io/xwing/?f=Scum%20and%20Villainy&d=v4!s!248::50:-1:&sn=Sunny%20B!&obs=|Sunny B!>* *[12]*',
-            ':m3ainterceptor::skill1: _<http://xwing-miniatures.wikia.com/wiki/Sunny_Bounder|Sunny Bounder>_: <http://xwing-miniatures.wikia.com/wiki/"Light_Scyk"_Interceptor|"Light Scyk" Interceptor> *[12]*',
+            ':scum: *<https://raithos.github.io/xwing/?f=Scum%20and%20Villainy&d=v4!s!138:-1,168:-1:-1:U.10&sn=Sunny%20B!&obs=|Sunny B!>* *[34]*',
+            ':m3ainterceptor::initiative1: _<http://xwing-miniatures-second-edition.wikia.com/wiki/Sunny_Bounder|Sunny Bounder>_: <http://xwing-miniatures-second-edition.wikia.com/wiki/Heavy_Laser_Cannon|Heavy Laser Cannon> *[34]*',
         ],
     ),
     (
-        {
-            "version": "0.3.0",
-            "name": "Sunny B!",
-            "faction": "scum",
-            "points": 12,
-            "pilots": [
-                {
-                    "name": "sunnybounder",
-                    "ship": "m3ainterceptor",
-                    "points": 12,
-                    "upgrades": {
-                        "title": [
-                            "lightscykinterceptor"
-                        ]
-                    }
-                }
-            ],
-            "vendor": {
-                "voidstate": {
-                    "squadron_id": 747933,
-                    "link": "http://xwing-builder.co.uk/view/747933/sunny-b",
-                    "builder": "Voidstate's Unofficial X-Wing Squadron Builder",
-                    "builder_link": "http://xwing-builder.co.uk/build"
-                }
-            }
-        },
+        {"description": "", "faction": "scumandvillainy", "name": "Variable points", "pilots": [
+            {"id": "cartelexecutioner", "points": 48, "ship": "m12lkimogilafighter", "upgrades": {"mod": ["shieldupgrade"]}}], "points": 47, "version": "0.3.0"},
         [
-            ':scum: *<http://xwing-builder.co.uk/view/747933/sunny-b|Sunny B!>* *[12]*',
-            ':m3ainterceptor::skill1: _<http://xwing-miniatures.wikia.com/wiki/Sunny_Bounder|Sunny Bounder>_: <http://xwing-miniatures.wikia.com/wiki/"Light_Scyk"_Interceptor|"Light Scyk" Interceptor> *[12]*',
+            ':scum: *Variable points* *[47]*',
+            ':m12lkimogilafighter::initiative3: _<http://xwing-miniatures-second-edition.wikia.com/wiki/Cartel_Executioner|Cartel Executioner>_: <http://xwing-miniatures-second-edition.wikia.com/wiki/Shield_Upgrade|Shield Upgrade> *[47]*',
         ],
     ),
     (
-        {"description":"","faction":"scum","pilots":[{"name":"sunnybounder","points":12,"ship":"m3ascykinterceptor","upgrades":{"title":["lightscykinterceptor"]}}],"points":12,"vendor":{"fab":{"builder":"Fabs Squadrons generator","builder_link":"http://x-wing.fabpsb.net/","link":"http://x-wing.fabpsb.net/permalink?sq=z63f47"}},"version":"1.0.0"},
+        {"description": "", "faction": "scumandvillainy", "name": "Variable point costs!", "pilots": [{"id": "captainjostero", "points": 47, "ship": "kihraxzfighter", "upgrades": {"mod": ["hullupgrade"]}}, {"id": "serissu", "points": 47, "ship": "m3ainterceptor", "upgrades": {"mod": ["hullupgrade"]}}], "points": 98, "version": "0.3.0"},
         [
-            ':scum: *<http://x-wing.fabpsb.net/permalink?sq=z63f47|Nameless Squadron>* *[12]*',
-            ':m3ainterceptor::skill1: _<http://xwing-miniatures.wikia.com/wiki/Sunny_Bounder|Sunny Bounder>_: <http://xwing-miniatures.wikia.com/wiki/"Light_Scyk"_Interceptor|"Light Scyk" Interceptor> *[12]*',
-        ],
-    ),
-    (
-        {"faction":"scum","pilots":[{"name":"cartelmarauder","ship":"kihraxzfighter","upgrades":{"missile":["homingmissiles"],"illicit":["hotshotblaster"],"mod":["engineupgrade","stealthdevice","shieldupgrade"],"title":["vaksai"]}}],"version":"0.3.0","name":"Vaksai!"},
-        [
-            ':scum: *Vaksai!* *[34]*',
-            ':kihraxzfighter::skill2: _<http://xwing-miniatures.wikia.com/wiki/Cartel_Marauder|Cartel Marauder>_: <http://xwing-miniatures.wikia.com/wiki/Homing_Missiles|Homing Missiles>, <http://xwing-miniatures.wikia.com/wiki/"Hot_Shot"_Blaster|"Hot Shot" Blaster>, <http://xwing-miniatures.wikia.com/wiki/Engine_Upgrade|Engine Upgrade>, <http://xwing-miniatures.wikia.com/wiki/Stealth_Device|Stealth Device>, <http://xwing-miniatures.wikia.com/wiki/Shield_Upgrade|Shield Upgrade>, <http://xwing-miniatures.wikia.com/wiki/Vaksai|Vaksai> *[34]*',
-        ],
-    ),
-    (
-        {"faction":"imperial","pilots":[{"name":"darthvader","ship":"tieadvanced","upgrades":{"system":["accuracycorrector"],"title":["tiex1"]}}],"version":"0.3.0","name":"TIE/X1"},
-        [
-            ':imperial: *TIE/X1* *[29]*',
-            ':tieadvanced::skill9: _<http://xwing-miniatures.wikia.com/wiki/Darth_Vader|Darth Vader>_: <http://xwing-miniatures.wikia.com/wiki/Accuracy_Corrector|Accuracy Corrector>, <http://xwing-miniatures.wikia.com/wiki/TIE/x1|TIE/x1> *[29]*',
-        ],
-    ),
-    (
-        {'faction': 'rebel', 'pilots': [{'name': 'braylenstramm', 'ship': 'arc170'}], 'version': '0.3.0', 'name': 'No upgrades'},
-        [
-            ':rebel: *No upgrades* *[25]*',
-            ':arc170::skill3: _<http://xwing-miniatures.wikia.com/wiki/Braylen_Stramm|Braylen Stramm>_ *[25]*',
-        ]
-    ),
-    # Unrecognised upgrade
-    (
-        {'faction': 'rebel', 'pilots': [{'name': 'braylenstramm', 'ship': 'arc170', "upgrades":{"crew":["captainpicard"]}}], 'version': '0.3.0', 'name': 'No upgrades'},
-        [
-            ':rebel: *No upgrades* *[25]*',
-            ':arc170::skill3: _<http://xwing-miniatures.wikia.com/wiki/Braylen_Stramm|Braylen Stramm>_: *Unrecognised Upgrade* *[25]*',
+            ':scum: *Variable point costs!* *[94]*',
+            ':kihraxzfighter::initiative3: _<http://xwing-miniatures-second-edition.wikia.com/wiki/Captain_Jostero|Captain Jostero>_: <http://xwing-miniatures-second-edition.wikia.com/wiki/Hull_Upgrade|Hull Upgrade> *[47]*',
+            ':m3ainterceptor::initiative5: _<http://xwing-miniatures-second-edition.wikia.com/wiki/Serissu|Serissu>_: <http://xwing-miniatures-second-edition.wikia.com/wiki/Hull_Upgrade|Hull Upgrade> *[47]*',
         ]
     ),
     (
-        {"description":"","faction":"scum","name":"Adapatability","pilots":[{"name":"inaldra","points":15,"ship":"m3ainterceptor","upgrades":{"ept":["adaptability"]}}],"points":15,"version":"0.3.0"},
+        {"description": "", "faction": "scumandvillainy", "name": "Lando", "pilots": [{"id": "landocalrissian", "points": 49, "ship": "customizedyt1300lightfreighter"}], "points": 49, "version": "0.3.0"},
         [
-            ':scum: *Adapatability* *[15]*',
-            ':m3ainterceptor::skill3: _<http://xwing-miniatures.wikia.com/wiki/Inaldra|Inaldra>_: <http://xwing-miniatures.wikia.com/wiki/Adaptability|Adaptability>:skill_1: *[15]*',
+            ':scum: *Lando* *[49]*',
+            ':customizedyt1300lightfreighter::initiative4: _<http://xwing-miniatures-second-edition.wikia.com/wiki/Lando_Calrissian|Lando Calrissian>_ *[49]*',
         ]
     ),
-    # Unrecognised pilot
     (
-        {'faction': 'rebel', 'pilots': [{'name': 'sulu', 'ship': 'enterprise'}], 'version': '0.3.0', 'name': 'Bad ship'},
+        {"faction": "rebelalliance", "pilots": [{"id": "norrawexley-btla4ywing", "ship": "ywing"}, {"id": "lukeskywalker", "ship": "xwing", "upgrades": {"amd": ["r2d2"]}}], "vendor": {"yasb": {
+            "builder": "(Yet Another) X-Wing Miniatures Squad Builder", "builder_url": "https://raithos.github.io", "link": "https://raithos.github.io/?f=Rebel%20Alliance&d=v4!s!25:-1,-1,-1,-1,-1,-1,-1:-1:-1:;4:-1,-1,3,-1,-1:-1:-1:&sn=Unnamed%20Squadron&obs="}}, "version": "0.3.0"},
         [
-            ':rebel: *Bad ship* *[0]*',
-            ':question::question: _Unknown Pilot_',
+            ':rebel: *<https://raithos.github.io/?f=Rebel%20Alliance&d=v4!s!25:-1,-1,-1,-1,-1,-1,-1:-1:-1:;4:-1,-1,3,-1,-1:-1:-1:&sn=Unnamed%20Squadron&obs=|Nameless Squadron>* *[108]*',
+            ':btla4ywing::initiative5: _<http://xwing-miniatures-second-edition.wikia.com/wiki/Norra_Wexley|Norra Wexley>_ *[41]*',
+            ':t65xwing::initiative5: _<http://xwing-miniatures-second-edition.wikia.com/wiki/Luke_Skywalker|Luke Skywalker>_: <http://xwing-miniatures-second-edition.wikia.com/wiki/R2-D2|R2-D2> *[67]*',
         ]
-    ),
+    )
 )
-
 @pytest.mark.parametrize('xws, expected', print_xws_tests)
 def test_print_xws(testbot, xws, expected):
-    assert testbot.print_xws(xws) == expected
-
-
-def test_handle_json(testbot):
-    message = '{"faction": "rebel", "pilots": [{"name": "braylenstramm", "ship": "arc170"}], "version": "0.3.0", "name": "No upgrades"}'
-    expected = [
-        ':rebel: *No upgrades* *[25]*',
-        ':arc170::skill3: _<http://xwing-miniatures.wikia.com/wiki/Braylen_Stramm|Braylen Stramm>_ *[25]*',
-    ]
-    assert testbot.handle_json(message) == expected
+    assert testbot.print_xws(xws) == [expected]

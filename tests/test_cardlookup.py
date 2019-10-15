@@ -1,276 +1,361 @@
 import pytest
 
 from r2d7.cardlookup import CardLookup
+from r2d7.core import UserError
 from r2d7.slackdroid import SlackDroid
 
 
 print_card_tests = (
-    ('veteraninstincts', [
-        ':elite: *<http://xwing-miniatures.wikia.com/wiki/Veteran_Instincts|Veteran Instincts>* [1]',
-        'Increase your pilot skill value by 2.',
+    ('tacticalofficer', [
+        ':crew: *<http://xwing-miniatures-second-edition.wikia.com/wiki/Tactical_Officer|Tactical Officer>* [6] [Hyperspace]',
+        '_Restrictions: :redcoordinate:_',
+        '_In the chaos of a starfighter battle, a single order can mean the difference between a victory and a massacre._',
+        ':coordinate:',
     ]),
-    ('tactician', [
-        ':crew: *<http://xwing-miniatures.wikia.com/wiki/Tactician|Tactician>* [2]',
-        '_Limited._',
-        'After you perform an attack against a ship inside your firing arc at Range 2, that ship receives 1 stress token.',
+    ('predator', [
+        ':talent: *<http://xwing-miniatures-second-edition.wikia.com/wiki/Predator|Predator>* [2] [Hyperspace]',
+        'While you perform a primary attack, if the defender is in your :bullseyearc:, you may reroll 1 attack die.',
     ]),
-    ('rage', [
-        ':elite: *<http://xwing-miniatures.wikia.com/wiki/Rage|Rage>* [1]',
-        '*Action:* Assign 1 focus token to your ship and receive 2 stress tokens. Until the end of the round, when attacking, you may reroll up to 3 attack dice.',
+    ('homingmissiles', [
+        ':missile: *<http://xwing-miniatures-second-edition.wikia.com/wiki/Homing_Missiles|Homing Missiles>* [5] [Hyperspace]',
+        'Attack (:targetlock:): Spend 1 :charge:. After you declare the defender, the defender may choose to suffer 1 :hit: damage. If it does, skip the Attack and Defense Dice steps and the attack is treated as hitting.',
+        ':redfrontarc::attack4::redrangebonusindicator:2-3 | :orangecharge::charge2:',
+    ]),
+    ('r2astromech', [
+        ':astromech: *<http://xwing-miniatures-second-edition.wikia.com/wiki/R2_Astromech|R2 Astromech>* [:greenagility::agility0:3:agility1:3:agility2:4:agility3:6] [Hyperspace]',
+        'After you reveal your dial, you may spend 1 :charge: and gain 1 disarm token to recover 1 shield.',
+        ':orangecharge::charge2:',
+    ]),
+    ('emperorpalpatine', [
+        ':crew::crew: • *<http://xwing-miniatures-second-edition.wikia.com/wiki/Emperor_Palpatine|Emperor Palpatine>* [11]',
+        '_Restrictions: Imperial_',
+        'While another friendly ship defends or performs an attack, you may spend 1 :forcecharge: to modify 1 of its dice as though that ship had spent 1 :forcecharge:.',
+        ':purpleforcecharge::forcechargeplus1recurring:',
+    ]),
+    ('os1arsenalloadout', [
+        ':configuration: *<http://xwing-miniatures-second-edition.wikia.com/wiki/Os-1_Arsenal_Loadout|Os-1 Arsenal Loadout>* [0]',
+        '_Restrictions: Alpha-class Star Wing_',
+        'While you have exactly 1 disarm token, you can still perform :torpedo: and :missile: attacks against targets you have locked. If you do, you cannot spend your lock during the attack. Add :torpedo: and :missile: slots.',
+    ]),
+    ('shieldupgrade', [
+        ':modification: *<http://xwing-miniatures-second-edition.wikia.com/wiki/Shield_Upgrade|Shield Upgrade>* [:greenagility::agility0:3:agility1:4:agility2:6:agility3:8] [Hyperspace]',
+        '_Deflector shields are a substantial line of defense on most starships beyond the lightest fighters. While enhancing a ship\'s shield capacity can be costly, all but the most confident or reckless pilots see the value in this sort of investment._',
+        ':blueshield::shieldplus1:'
+    ]),
+    ('starviperclassattackplatform', [
+        ':starviperclassattackplatform: *<http://xwing-miniatures-second-edition.wikia.com/wiki/StarViper-class_Attack_Platform|StarViper-class Attack Platform>* :smallbase:',
+        ':redfrontarc::attack3::greenagility::agility3::yellowhull::hull4::blueshield::shield1:  :focus:|:targetlock:|:barrelroll::linked::redfocus:|:boost::linked::redfocus:  :sensor::torpedo::modification::title:',
+        '4 :blank::blank::straight::blank::blank::blank::blank:',
+        '3 :blank::bankleft::bluestraight::bankright::blank::redsloopleft::redsloopright:',
+        '2 :turnleft::bluebankleft::bluestraight::bluebankright::turnright::blank::blank:',
+        '1 :turnleft::bluebankleft::bluestraight::bluebankright::turnright::blank::blank:',
+        '_*Microthrusters:*_ While you perform a barrel roll, you *must* use the :bankleft: or :bankright: template instead of the :straight: template.',
+        ':scum: :initiative2:<http://xwing-miniatures-second-edition.wikia.com/wiki/Black_Sun_Enforcer|Black Sun Enforcer> [46], :initiative3:<http://xwing-miniatures-second-edition.wikia.com/wiki/Black_Sun_Assassin|Black Sun Assassin> :talent: [48], :initiative4:•<http://xwing-miniatures-second-edition.wikia.com/wiki/Dalan_Oberos|Dalan Oberos> :talent: [54], :initiative4:•<http://xwing-miniatures-second-edition.wikia.com/wiki/Prince_Xizor|Prince Xizor> :talent: [54], :initiative5:•<http://xwing-miniatures-second-edition.wikia.com/wiki/Guri|Guri> :talent: :calculate: [64]',
+    ]),
+    ('guri', [
+        ':starviperclassattackplatform: • *<http://xwing-miniatures-second-edition.wikia.com/wiki/Guri|Guri>*: _Prince Xizor\'s Bodyguard_ [64] [Hyperspace]',
+        ':scum:  :initiative5::redfrontarc::attack3::greenagility::agility3::yellowhull::hull4::blueshield::shield1:  :calculate:|:targetlock:|:barrelroll::linked::redcalculate:|:boost::linked::redcalculate:  :talent::sensor::torpedo::modification::title:',
+        'At the start of the Engagement Phase, if there is at least 1 enemy ship at range 0-1, you may gain 1 focus token.',
+        '_*Microthrusters:*_ While you perform a barrel roll, you *must* use the :bankleft: or :bankright: template instead of the :straight: template.',
+    ]),
+    ('imdaartestpilot', [
+        ':tiephphantom: *<http://xwing-miniatures-second-edition.wikia.com/wiki/Imdaar_Test_Pilot|Imdaar Test Pilot>* [44]',
+        ':imperial:  :initiative3::redfrontarc::attack3::greenagility::agility2::yellowhull::hull3::blueshield::shield2:  :focus:|:evade:|:barrelroll:|:cloak:  :sensor::modification::gunner:',
+        '_The primary result of a hidden research facility on Imdaar Alpha, the TIE phantom achieves what many thought was impossible: a small starfighter equipped with an advanced cloaking device._',
+        '_*Stygium Array:*_ After you decloak, you may perform an :evade: action. At the start of the End Phase, you may spend 1 evade token to gain 1 cloak token.',
+    ]),
+    ('pivotwing', [
+        ':configuration: *<http://xwing-miniatures-second-edition.wikia.com/wiki/Pivot_Wing_%28Closed%29|Pivot Wing (Closed)>* [0] [Hyperspace]',
+        '_Restrictions: UT-60D U-wing_',
+        'While you defend, roll 1 fewer defense die. After you execute a [0 :stop:] maneuver, you may rotate your ship 90° or 180°. Before you activate, you may flip this card.',
+        ':configuration: *<http://xwing-miniatures-second-edition.wikia.com/wiki/Pivot_Wing_%28Open%29|Pivot Wing (Open)>* [0] [Hyperspace]',
+        '_Restrictions: UT-60D U-wing_',
+        'Before you activate, you may flip this card.',
+    ]),
+    ('directhit', [
+        ':crit: *Direct Hit!* (core)',
+        'Suffer 1 :hit: damage. Then repair this card.',
+    ]),
+    ('hunted', [
+        ':condition: *Hunted*',
+        'After you are destroyed, you *must* choose another friendly ship and assign this condition to it, if able.',
+    ]),
+    ('agentkallus', [
+        ':crew: • *<http://xwing-miniatures-second-edition.wikia.com/wiki/Agent_Kallus|Agent Kallus>* [5] [Hyperspace]',
+        '_Restrictions: Imperial_',
+        '*Setup:* Assign the _*Hunted*_ condition to 1 enemy ship. While you perform an attack against the ship with the _*Hunted*_ condition, you may change 1 of your :focus: results to a :hit: result.',
+        ':condition: *Hunted*',
+        'After you are destroyed, you *must* choose another friendly ship and assign this condition to it, if able.',
+    ]),
+    ('seismiccharges', [
+        ':device: *<http://xwing-miniatures-second-edition.wikia.com/wiki/Seismic_Charges|Seismic Charges>* [3] [Hyperspace]',
+        '_*Bomb:*_ During the System Phase, you may spend 1 :charge: to drop a Seismic Charge with the [1 :straight:] template.',
+        ':orangecharge::charge2:',
+        '*Seismic Charge* (Bomb)',
+        'At the end of the Activation Phase, this device detonates. When this device detonates, choose 1 obstacle at range 0-1. Each ship at range 0-1 of the obstacle suffers 1 :hit: damage. Then remove that obstacle.',
     ]),
     ('snapshot', [
-        ':elite: *<http://xwing-miniatures.wikia.com/wiki/Snap_Shot|Snap Shot>* [2]',
-        ':attack::attack2: | Range: 1',
-        'After an enemy ship executes a maneuver, you may perform this attack against that ship.',
-        '*Attack:* Attack 1 ship. You cannot modify your attack dice and cannot attack again this phase.',
-    ]),
-    ('heavylaserturret', [
-        ':hardpoint: *<http://xwing-miniatures.wikia.com/wiki/Heavy_Laser_Turret|Heavy Laser Turret>* [5]',
-        ':attack::attack4: | Range: 2-3 | :energy::energy2:',
-        '_C-ROC Cruiser only._',
-        '*Attack (energy):* Spend 2 energy from this card to perform this attack against 1 ship (even a ship outside of your firing arc).',
-    ]),
-    ('brighthope', [
-        ':title: • *<http://xwing-miniatures.wikia.com/wiki/Bright_Hope|Bright Hope>* [5]',
-        ':energy::energyplus2:',
-        '_GR-75 Medium Transport only._',
-        'A reinforce token assigned to your fore section acts as 2 :Evade: results (instead of one).',
-    ]),
-    ('xwing', [
-        ':xwing: *X-wing*',
-        ':attack3::agility2::hull3::shield2: | :focus: :targetlock: | :torpedo::astromech:',
-        '4 :blank::blank::straight::blank::blank::redkturn:',
-        '3 :turnleft::bankleft::straight::bankright::turnright::blank:',
-        '2 :turnleft::bankleft::greenstraight::bankright::turnright::blank:',
-        '1 :blank::greenbankleft::greenstraight::greenbankright::blank::blank:',
-        ':rebel: :skill2:<http://xwing-miniatures.wikia.com/wiki/Rookie_Pilot|Rookie Pilot> [21], :skill3:• <http://xwing-miniatures.wikia.com/wiki/Tarn_Mison|Tarn Mison> [23], :skill4:<http://xwing-miniatures.wikia.com/wiki/Red_Squadron_Pilot|Red Squadron Pilot> [23], :skill5:• <http://xwing-miniatures.wikia.com/wiki/Biggs_Darklighter|Biggs Darklighter> [25], :skill5:• <http://xwing-miniatures.wikia.com/wiki/"Hobbie"_Klivian|"Hobbie" Klivian> [25], :skill6:• <http://xwing-miniatures.wikia.com/wiki/Garven_Dreis|Garven Dreis> [26], :skill7:• <http://xwing-miniatures.wikia.com/wiki/Jek_Porkins|Jek Porkins> :elite: [26], :skill8:• <http://xwing-miniatures.wikia.com/wiki/Luke_Skywalker|Luke Skywalker> :elite: [28], :skill8:• <http://xwing-miniatures.wikia.com/wiki/Wes_Janson|Wes Janson> :elite: [29], :skill9:• <http://xwing-miniatures.wikia.com/wiki/Wedge_Antilles|Wedge Antilles> :elite: [29]',
-    ]),
-    ('firespray31', [
-        ':firespray31: *Firespray-31*',
-        # The card actually has bomb before crew, but that contradicts other cards
-        ':attack3::agility2::hull6::shield4: | :attack-frontback: | :focus: :targetlock: :evade: | :cannon::missile::crew::xbomb:',
-        '4 :blank::blank::straight::blank::blank::redkturn:',
-        '3 :turnleft::bankleft::straight::bankright::turnright::redkturn:',
-        '2 :turnleft::bankleft::greenstraight::bankright::turnright::blank:',
-        '1 :blank::greenbankleft::greenstraight::greenbankright::blank::blank:',
-        ':empire: :skill3:<http://xwing-miniatures.wikia.com/wiki/Bounty_Hunter|Bounty Hunter> [33], :skill5:• <http://xwing-miniatures.wikia.com/wiki/Krassis_Trelix|Krassis Trelix> [36], :skill7:• <http://xwing-miniatures.wikia.com/wiki/Kath_Scarlet|Kath Scarlet> :elite: [38], :skill8:• <http://xwing-miniatures.wikia.com/wiki/Boba_Fett|Boba Fett> :elite: [39]',
-        ':scum: :skill5:<http://xwing-miniatures.wikia.com/wiki/Mandalorian_Mercenary|Mandalorian Mercenary> :elite: [35], :skill6:• <http://xwing-miniatures.wikia.com/wiki/Emon_Azzameen|Emon Azzameen> [36], :skill7:• <http://xwing-miniatures.wikia.com/wiki/Kath_Scarlet|Kath Scarlet> :elite: [38], :skill8:• <http://xwing-miniatures.wikia.com/wiki/Boba_Fett|Boba Fett> :elite: [39]',    ]),
-    ('quadjumper', [
-        ':quadjumper: *Quadjumper*',
-        ':attack2::agility2::hull5::shield0: | :focus: :barrelroll: | :crew::xbomb::tech::illicit:',
-        '3 :blank::bankleft::greenstraight::bankright::blank::blank::blank::blank::blank::blank:',
-        '2 :turnleft::greenbankleft::greenstraight::greenbankright::turnright::redsloopleft::redsloopright::blank::blank::blank:',
-        '1 :turnleft::blank::straight::blank::turnright::blank::blank::redreversebankleft::redreversestraight::redreversebankright:',
-        ':scum: :skill1:<http://xwing-miniatures.wikia.com/wiki/Jakku_Gunrunner|Jakku Gunrunner> [15], :skill3:• <http://xwing-miniatures.wikia.com/wiki/Unkar_Plutt|Unkar Plutt> [17], :skill5:• <http://xwing-miniatures.wikia.com/wiki/Sarco_Plank|Sarco Plank> :elite: [18], :skill7:• <http://xwing-miniatures.wikia.com/wiki/Constable_Zuvio|Constable Zuvio> :elite: [19]',
-    ]),
-    ('yv666', [
-        ':yv666: *YV-666*',
-        ':attack3::agility1::hull6::shield6: | :attack-180: | :focus: :targetlock: | :cannon::missile::crew::crew::crew::illicit:',
-        '4 :blank::blank::straight::blank::blank:',
-        '3 :turnleft::bankleft::greenstraight::bankright::turnright:',
-        '2 :redturnleft::bankleft::greenstraight::bankright::redturnright:',
-        '1 :blank::greenbankleft::greenstraight::greenbankright::blank:',
-        '0 :blank::blank::redstop::blank::blank:',
-        ':scum: :skill2:<http://xwing-miniatures.wikia.com/wiki/Trandoshan_Slaver|Trandoshan Slaver> [29], :skill5:• <http://xwing-miniatures.wikia.com/wiki/Latts_Razzi|Latts Razzi> [33], :skill6:• <http://xwing-miniatures.wikia.com/wiki/Moralo_Eval|Moralo Eval> [34], :skill7:• <http://xwing-miniatures.wikia.com/wiki/Bossk|Bossk> :elite: [35]',
-    ]),
-    ('rey.0', [
-        ':crew: • *<http://xwing-miniatures.wikia.com/wiki/Rey_(Crew)|Rey>* [2]',
-        '_Rebel only._',
-        'At the start of the End phase, you may place 1 of your ship\'s focus tokens on this card. At the start of the Combat phase, you may assign 1 of those tokens to your ship.',
-    ]),
-    ('rey.1', [
-        ':yt1300: • *<http://xwing-miniatures.wikia.com/wiki/Rey|Rey>* [45]',
-        ':resistance: | :skill8::attack3::agility1::hull8::shield5: | :attack-turret: | :focus: :targetlock: | :elite::missile::crew::crew:',
-        'When attacking or defending, if the enemy ship is inside your firing arc, you may reroll up to 2 of your blank results.',
-    ]),
-    ('quinnjast', [
-        ':m3ainterceptor: • *<http://xwing-miniatures.wikia.com/wiki/Quinn_Jast|Quinn Jast>* [18]',
-        ':scum: | :skill6::attack2::agility3::hull2::shield1: | :focus: :targetlock: :barrelroll: :evade: | :elite:',
-        'At the start of the Combat phase, you may receive a weapons disabled token to flip one of your discarded :Torpedo: or :Missile: Upgrade cards faceup.',
-    ]),
-    ('countessryad', [
-        ':tiedefender: • *<http://xwing-miniatures.wikia.com/wiki/Countess_Ryad|Countess Ryad>* [34]',
-        ':empire: | :skill5::attack3::agility3::hull3::shield3: | :focus: :targetlock: :barrelroll: | :elite::cannon::missile:',
-        'When you reveal a :Straight: maneuver, you may treat it as a :kturn: maneuver.',
-    ]),
-    ('outerrimsmuggler', [
-        ':yt1300: *<http://xwing-miniatures.wikia.com/wiki/Outer_Rim_Smuggler|Outer Rim Smuggler>* [27]',
-        ':rebel: | :skill1::attack2::agility1::hull6::shield4: | :attack-turret: | :focus: :targetlock: | :crew::crew:',
-    ]),
-    ('r3astromech', [
-        ':astromech: *<http://xwing-miniatures.wikia.com/wiki/R3_Astromech|R3 Astromech>* [2]',
-        'Once per round, when attacking with a primary weapon, you may cancel 1 of your :Focus: results during the "Modify Attack Dice" step to assign 1 evade token to your ship.',
-    ]),
-    ('adaptability.0', [
-        ':elite: *<http://xwing-miniatures.wikia.com/wiki/Adaptability|Adaptability (-1)>* [0]',
-        'Decrease your pilot skill value by 1.'
-    ]),
-    ('adaptability.1', [
-        ':elite: *<http://xwing-miniatures.wikia.com/wiki/Adaptability|Adaptability (+1)>* [0]',
-        'Increase your pilot skill value by 1.'
-    ]),
-    ('bombloadout', [
-        ':torpedo: *<http://xwing-miniatures.wikia.com/wiki/Bomb_Loadout|Bomb Loadout>* [0]',
-        '_Y-wing only. Limited._',
-        'Your upgrade bar gains the :xbomb: icon.',
-    ]),
-    ('fleetofficer', [
-        ':crew: *<http://xwing-miniatures.wikia.com/wiki/Fleet_Officer|Fleet Officer>* [3]',
-        '_Imperial only._',
-        '*Action:* Choose up to 2 friendly ships within Range 1-2 and assign 1 focus token to each of those ships. Then receive 1 stress token.',
-    ]),
-    ('r2d2-swx22', [
-        ':crew: • *<http://xwing-miniatures.wikia.com/wiki/R2-D2_(Crew)|R2-D2>* [4]',
-        '_Rebel only._',
-        'At the end of the End phase, if you have no shields, you may recover 1 shield and roll 1 attack die.  On a :Hit: result, randomly flip 1 of your facedown Damage cards faceup and resolve it.',
-    ]),
-    ('mimicked', [
-        ':condition: • *<http://xwing-miniatures.wikia.com/wiki/Mimicked|Mimicked>*',
-        '"Thweek" is treated as having your pilot ability.',
-        '"Thweek" cannot apply a Condition card by using your pilot ability.',
-        '"Thweek" does not lose your pilot ability if you are destroyed.',
-    ]),
-    ('whisper', [
-        ':tiephantom: • *<http://xwing-miniatures.wikia.com/wiki/"Whisper"|"Whisper">* [32]',
-        ':empire: | :skill7::attack4::agility2::hull2::shield2: | :focus: :barrelroll: :evade: :cloak: | :elite::system::crew:',
-        'After you perform an attack that hits, you may assign 1 focus token to your ship.',
-    ]),
-    ('tiex1', [
-        ':title: *<http://xwing-miniatures.wikia.com/wiki/TIE/x1|TIE/x1>* [0]',
-        '_TIE Advanced only._',
-        'Your upgrade bar gains the :System: upgrade icon.',
-        'If you equip a :System: upgrade, its squad point cost is reduced by 4 (to a minimum of 0).',
-    ]),
-    pytest.param('automatedprotocols', [
-        ':modification: *<http://xwing-miniatures.wikia.com/wiki/Automated_Protocols|Automated Protocols>* [5]',
-        '_Huge ship only._',
-        'Once per round, after you perform an action that is not a recover or reinforce action, you may spend 1 energy to perform a free recover or reinforce action.',
-    ], marks=pytest.mark.xfail),
-    ('deadeye', [
-        ':elite: *<http://xwing-miniatures.wikia.com/wiki/Deadeye|Deadeye>* [1]',
-        '_Small ship only._',
-        'You may treat the *Attack (target lock):* header as *Attack (focus):*.',
-        'When an attack instructs you to spend a target lock, you may spend a focus token instead.',
-    ]),
-    ('tactician', [
-        ':crew: *<http://xwing-miniatures.wikia.com/wiki/Tactician|Tactician>* [2]',
-        '_Limited._',
-        'After you perform an attack against a ship inside your firing arc at Range 2, that ship receives 1 stress token.',
-    ]),
-    ('twinionenginemkii', [
-        ':modification: *<http://xwing-miniatures.wikia.com/wiki/Twin_Ion_Engine_Mk._II|Twin Ion Engine Mk. II>* [1]',
-        '_TIE only._',
-        'You may treat all bank maneuvers (:bankleft: or :bankright:) as green maneuvers.',
-    ]),
-    ('smugglingcompartment', [
-        ':modification: *<http://xwing-miniatures.wikia.com/wiki/Smuggling_Compartment|Smuggling Compartment>* [0]',
-        '_YT-1300 and YT-2400 only. Limited._',
-        'Your upgrade bar gains the :Illicit: upgrade icon.',
-        'You may equip 1 additional Modification upgrade that costs 3 or fewer squad points.',
-    ]),
-    ('gr75mediumtransport.0', [
-        ':gr75mediumtransport: *GR-75 Medium Transport*',
-        ':energy4::agility0::hull8::shield4: | :recover: :reinforce: :coordinate: :jam: | :crew::crew::cargo::cargo::cargo: | :epic:2',
-        '4 :blank::straight::blank:',
-        '3 :blank::straight::blank:',
-        '2 :bankleft::straight::bankright:',
-        '1 :bankleft::straight::bankright:',
-        ':rebel: :skill3:<http://xwing-miniatures.wikia.com/wiki/GR-75_Medium_Transport|GR-75 Medium Transport> [30]',
-    ]),
-    ('gr75mediumtransport.1', [
-        ':gr75mediumtransport: *<http://xwing-miniatures.wikia.com/wiki/GR-75_Medium_Transport|GR-75 Medium Transport>* [30]',
-        ':rebel: | :skill3::energy4::agility0::hull8::shield4: | :recover: :reinforce: :coordinate: :jam: | :crew::crew::cargo::cargo::cargo: | :epic:2',
-    ]),
-    ('directhit.0', [
-        ':crit: *Direct Hit!* (Original)',
-        '_Ship_',
-        'This card counts as *2 damage* against your hull.',
-    ]),
-    pytest.param('directhit.1', [
-        ':crit: *Direct Hit!* (TFA)',
-        '_Ship_',
-        'This card counts as *2 damage* against your hull.',
-    ], marks=pytest.mark.xfail),
-    ('damagedsensorarray.0', [
-        ':crit: *Damaged Sensor Array* (Original)',
-        '_Ship_',
-        'You cannot perform the actions listed in your action bar.',
-        '*Action:* Roll 1 attack die. On a :Hit: results, flip this card facedown.',
-    ]),
-    ('damagedsensorarray.1', [
-        ':crit: *Damaged Sensor Array* (TFA)',
-        '_Ship_',
-        'You cannot perform any actions except actions listed on Damage cards.',
-        '*Action:* Roll 1 attack die. On a :Hit: or :crit: result, flip this card facedown.',
+        ":talent: *<http://xwing-miniatures-second-edition.wikia.com/wiki/Snap_Shot|Snap Shot>* [:smallbase:7:mediumbase:8:largebase:9] [Hyperspace]",
+        "After an enemy ship executes a maneuver, you may perform this attack against it as a bonus attack.",
+        "*Attack:* Your dice cannot be modified.",
+        ':redfrontarc::attack2::redrangebonusindicator:2',
     ]),
 )
 
 @pytest.mark.parametrize('name, expected', print_card_tests)
 def test_print_card(testbot, name, expected):
-    if '.' in name:
-        name, num = name.split('.')
-    else:
-        num = 0
-    assert name in testbot._lookup_data
-    assert len(testbot._lookup_data[name]) > int(num)
-    card = testbot._lookup_data[name][int(num)]
-    assert testbot.print_card(card) == expected
+    assert testbot.print_card(testbot.test_lookup(name)) == expected
 
+print_card_image_tests = (
+    ('directhit', []),
+    ('hunted', []),
+    ('sunnybounder', ['https://sb-cdn.fantasyflightgames.com/card_images/Card_Pilot_188.png']),
+    ('l337.2', ['https://sb-cdn.fantasyflightgames.com/card_images/Card_Pilot_228.png']),
+    ('chopper.0', ['https://sb-cdn.fantasyflightgames.com/card_images/Card_Upgrade_99.png']),
+    ('servomotorsfoils', ['https://sb-cdn.fantasyflightgames.com/card_images/Card_Upgrade_108.png', 'https://sb-cdn.fantasyflightgames.com/card_images/Card_Upgrade_108b.png']),
+)
+
+@pytest.mark.parametrize('name, expected', print_card_image_tests)
+def test_print_card_image(testbot, name, expected):
+    assert sorted(testbot.print_image(testbot.test_lookup(name))) == sorted(expected)
 
 lookup_tests = {
-    'sunny bounder': [('sunnybounder', 'm3ainterceptor')],
-    'Rey': [('rey', 'Crew'), ('rey', 'yt1300')],
+    'sunny bounder': [('sunnybounder', 'pilot')],
+    'Rey': [('rey-gunner', 'gunner'), ('rey', 'pilot'), ('reysmillenniumfalcon', 'title')],
     'han solo': [
-        ('hansolo', 'Crew'), ('hansolo', 'yt1300'), ('hansolo-swx57', 'yt1300')
+        ('hansolo-crew', 'crew'),
+        ('hansolo', 'gunner'),
+        ('hansolo-gunner', 'gunner'),
+        ('hansolo-modifiedyt1300lightfreighter', 'pilot'),
+        ('hansolo', 'pilot'),
+        ('hansolo-scavengedyt1300', 'pilot')
     ],
-    'xwing': [('xwing', 'xwing'), ('t70xwing', 't70xwing')],
-    ':crew: Rey': [('rey', 'Crew')],
-    'Rey :crew:': [('rey', 'Crew')],
-    ':astromech: r2d2': [('r2d2', 'Astromech')],
-    ':elite: >3': [
-        ('expose', 'Elite'), ('opportunist', 'Elite'), ('expertise', 'Elite')
-    ],
-    ':crew: rey]]   [[finn': [('rey', 'Crew'), ('finn', 'Crew')],
-    ':crew: rey]]   [[finn]] [[:astromech: r2d2]]': [
-        ('rey', 'Crew'), ('finn', 'Crew'), ('r2d2', 'Astromech')],
+    'xwing': [('t65xwing', 'ship'), ('t70xwing', 'ship')],
+    ':gunner: Han solo': [('hansolo', 'gunner'), ('hansolo-gunner', 'gunner')],
+    'Han solo :gunner:': [('hansolo', 'gunner'), ('hansolo-gunner', 'gunner')],
+    ':astromech: r2d2': [('r2d2', 'astromech')],
+    'guri]]   [[finn': [('guri', 'pilot'), ('finn', 'gunner'), ('finn', 'pilot')],
+    'guri]]   [[finn]] [[:astromech: r2d2]]': [
+        ('guri', 'pilot'), ('finn', 'gunner'), ('finn', 'pilot'), ('r2d2', 'astromech')],
     'han': [
-        ('hansolo', 'Crew'), ('hansolo', 'yt1300'), ('hansolo-swx57', 'yt1300')
+        ('hansolo-crew', 'crew'),
+        ('hansolo', 'gunner'),
+        ('hansolo-gunner', 'gunner'),
+        ('hansolo-modifiedyt1300lightfreighter', 'pilot'),
+        ('hansolo', 'pilot'),
+        ('hansolo-scavengedyt1300', 'pilot')
     ],
-    'test': [
-        ('awingtestpilot', 'Title'), ('sienartestpilot', 'tieadvprototype')],
-    'fcs': [('firecontrolsystem', 'System')],
-    'thweek': [
-        ('thweek', 'starviper'),
-        ('mimicked', 'condition'), ('shadowed', 'condition')
+    ':modifiedyt1300lightfreighter: Han': [
+        ('hansolo-modifiedyt1300lightfreighter', 'pilot'),
     ],
-    ':astromech: &gt; 3': [('r2d2', 'Astromech')],
+    'test': [('imdaartestpilot', 'pilot'), ('firstordertestpilot', 'pilot')],
+    'fcs': [('firecontrolsystem', 'sensor')],
+    ':astromech: &gt; 6': [('m9g8', 'astromech'), ('c110p', 'astromech')],
+    ':crew: = 13': [('supremeleadersnoke', 'crew')],
     ':focus:': [],
-    ':imperial:': [('imperialtrainee', 'tiestriker')],
-    'torpedo': [
-        ('protontorpedoes', 'Torpedo'),
-        ('advprotontorpedoes', 'Torpedo'),
-        ('flechettetorpedoes', 'Torpedo'),
-        ('iontorpedoes', 'Torpedo'),
-        ('plasmatorpedoes', 'Torpedo'),
-        ('seismictorpedo', 'Torpedo'),
-    ],
-    ':crew: = 8': [('emperorpalpatine', 'Crew')],
-    'hot shot': [('hotshotblaster', 'Illicit'), ('hotshotcopilot', 'Crew')],
-    'kylo': [
-        ('kyloren', 'Crew'), ('illshowyouthedarkside', 'condition'),
-        ('kyloren', 'upsilonclassshuttle'),
-        ('kyloren', 'tiesilencer'),
-        ('kylorensshuttle', 'Title'),
-    ],
+    'hot shot': [('hotshotgunner', 'gunner')],
     # Test for unescaped lookup in regex
     '{0}{0}{1}': [],
+    'z95': [('z95af4headhunter', 'ship')],
+    'tieddefender': [('tieddefender', 'ship')],
+    'tiedefender': [('tieddefender', 'ship')],
+    'TIE STRIKER': [('tieskstriker', 'ship')],
 }
 @pytest.mark.parametrize('lookup, expected', lookup_tests.items())
 def test_lookup(testbot, lookup, expected):
-    actual = [(card['xws'], card['slot']) for card in testbot.lookup(lookup)]
+    actual = [(card['xws'], card['category']) for card in testbot.lookup(lookup)]
     assert actual == expected
 
+@pytest.mark.parametrize('lookup, message', [
+    ('tie', 'Your search matched more than 10 cards, please be more specific.'),
+    ('> 4', 'You need to specify a slot to search by points value.')
+])
+def test_user_errors(testbot, lookup, message):
+    with pytest.raises(UserError, match=message):
+        testbot.handle_lookup(lookup)
 
-def test_card_limit(testbot):
-    assert testbot.handle_lookup('squadron') == [
-        'Your search matched more than 10 cards, please be more specific.']
+@pytest.mark.parametrize('dialgen, slack', (
+    ([
+        "1TW", "1YW", "2TW", "2BB", "2FB", "2NB", "2YW", "3TW", "3BW", "3FB",
+        "3NW", "3YW", "3KR", "4FW", "4KR", "5FW"
+    ],
+    [
+        '5 :blank::blank::straight::blank::blank::blank:',
+        '4 :blank::blank::straight::blank::blank::redkturn:',
+        '3 :turnleft::bankleft::bluestraight::bankright::turnright::redkturn:',
+        '2 :turnleft::bluebankleft::bluestraight::bluebankright::turnright::blank:',
+        '1 :turnleft::blank::blank::blank::turnright::blank:',
+    ]
+    ),
+    ([
+        "1AR", "1DR", "1TW", "1BW", "1FW", "1NW", "1YW", "2SR", "2LR", "2TW",
+        "2BB", "2FB", "2NB", "2YW", "2PR", "3BW", "3FB", "3NW"
+    ],
+    [
+        '3 :blank::bankleft::bluestraight::bankright::blank::blank::blank::blank::blank::blank:',
+        '2 :turnleft::bluebankleft::bluestraight::bluebankright::turnright::redsloopleft::redsloopright::blank::redreversestraight::blank:',
+        '1 :turnleft::bankleft::straight::bankright::turnright::blank::blank::redreversebankleft::blank::redreversebankright:',
+    ]
+    ),
+    ([
+        "0OR", "1BB", "1FB", "1NB", "2TR", "2BW", "2FB", "2NW", "2YR", "3BR",
+        "3FW", "3NR"
+    ],
+    [
+        '3 :blank::redbankleft::straight::redbankright::blank:',
+        '2 :redturnleft::bankleft::bluestraight::bankright::redturnright:',
+        '1 :blank::bluebankleft::bluestraight::bluebankright::blank:',
+        '0 :blank::blank::redstop::blank::blank:',
+    ] )
+))
+def test_maneuvers(testbot, dialgen, slack):
+    assert testbot.maneuvers(dialgen) == slack
+
+@pytest.mark.parametrize('action, expected', [
+    ({"difficulty": "White", "type": "Focus"}, ":focus:"),
+    ({"type": "Focus"}, ":focus:"),
+    ({"difficulty": "White", "type": "Barrel Roll", "linked": {
+        "difficulty": "Red", "type": "Focus"}},
+     ":barrelroll::linked::redfocus:")
+])
+def test_print_action(testbot, action, expected):
+    assert testbot.print_action(action) == expected
+
+@pytest.mark.parametrize('stat, expected', [
+    ({'type': 'shields', "value": 3}, ":blueshield::shield3:"),
+    ({'type': 'attack', 'arc': 'Front Arc', 'value': 4}, ":redfrontarc::attack4:"),
+])
+def test_print_stat(testbot, stat, expected):
+    assert testbot.print_stat(stat) == expected
+
+@pytest.mark.parametrize('res, expected', [
+    ([{'action': {"difficulty": "Red", "type": "Focus"}}], "_Restrictions: :redfocus:_"),
+    ([{'action': {"type": "Focus"}}], "_Restrictions: :focus:_"),
+    ([{"ships": ["t65xwing"]}], "_Restrictions: T-65 X-wing_"),
+    ([{'factions': ["Galactic Empire"]}], "_Restrictions: Imperial_"),
+    ([{'factions': ["Rebel Alliance", "Scum and Villainy"]}], "_Restrictions: Rebel or Scum_"),
+    ([{"ships": ["m3ainterceptor"], 'action': {"difficulty": "White", "type": "Focus"}}], "_Restrictions: :focus: or M3-A Interceptor_"),
+    ([{"sizes": ["Small"]}], "_Restrictions: Small ship_"),
+    ([{"sizes": ["Small", "Medium"]}], "_Restrictions: Small or Medium ship_"),
+    ([{"factions": ["Scum and Villainy"], "names": ["Darth Vader"]}], "_Restrictions: Scum or squad including Darth Vader_"),
+    ([{"arcs": ["Rear Arc"]}], "_Restrictions: :reararc:_"),
+    ([{"factions": ["Scum and Villainy"]}, {"ships": ["aggressorassaultfighter"]}],
+     "_Restrictions: Scum, Aggressor Assault Fighter_"),
+    ([{"factions": ["Resistance"]}], "_Restrictions: Resistance_"),
+    ([{"equipped": ["Astromech"]}], "_Restrictions: Equipped :astromech:_"),
+    ([{"solitary": True}], "_Restrictions: Solitary_"),
+    ([{"non-limited": True}], "_Restrictions: Non-Limited_"),
+    ([{"solitary": False}], None),
+    ([{"non-limtied": False}], None),
+    ([{"force_side": ["dark"]}], "_Restrictions: Dark side_"),
+])
+def test_print_restrictions(testbot, res, expected):
+    assert testbot.print_restrictions(res) == expected
+
+@pytest.mark.parametrize('pilot, expected', [
+    ('guri', ["_*Microthrusters:*_ While you perform a barrel roll, you *must* use the :bankleft: or :bankright: template instead of the :straight: template."]),
+    ('autopilotdrone', ['_*Rigged Energy Cells:*_ During the System Phase, if you are not docked, lose 1 :charge:. At the end of the Activation Phase, if you have 0 :charge:, you are destroyed. Before you are removed, each ship at range 0-1 suffers 1 :crit: damage.'])
+])
+def test_print_ship_ability(testbot, pilot, expected):
+    ability = testbot.test_lookup(pilot)['shipAbility']
+    assert testbot.print_ship_ability(ability) == expected
+
+@pytest.mark.parametrize('ship, expected', [
+    ('starviperclassattackplatform', [
+        '_*Microthrusters:*_ While you perform a barrel roll, you *must* use the :bankleft: or :bankright: template instead of the :straight: template.',
+        ':scum: :initiative2:<http://xwing-miniatures-second-edition.wikia.com/wiki/Black_Sun_Enforcer|Black Sun Enforcer> [46], :initiative3:<http://xwing-miniatures-second-edition.wikia.com/wiki/Black_Sun_Assassin|Black Sun Assassin> :talent: [48], :initiative4:•<http://xwing-miniatures-second-edition.wikia.com/wiki/Dalan_Oberos|Dalan Oberos> :talent: [54], :initiative4:•<http://xwing-miniatures-second-edition.wikia.com/wiki/Prince_Xizor|Prince Xizor> :talent: [54], :initiative5:•<http://xwing-miniatures-second-edition.wikia.com/wiki/Guri|Guri> :talent: :calculate: [64]',
+    ]),
+    ('hwk290lightfreighter', [
+        ':rebel: :initiative2:<http://xwing-miniatures-second-edition.wikia.com/wiki/Rebel_Scout|Rebel Scout> [30], :initiative3:•<http://xwing-miniatures-second-edition.wikia.com/wiki/Kyle_Katarn|Kyle Katarn> :talent: [36], :initiative4:•<http://xwing-miniatures-second-edition.wikia.com/wiki/Roark_Garnet|Roark Garnet> :talent: [41], :initiative5:•<http://xwing-miniatures-second-edition.wikia.com/wiki/Jan_Ors|Jan Ors> :talent: [43]',
+        ':scum: :initiative1:<http://xwing-miniatures-second-edition.wikia.com/wiki/Spice_Runner|Spice Runner> :illicit: [31], :initiative2:•<http://xwing-miniatures-second-edition.wikia.com/wiki/Torkil_Mux|Torkil Mux> :illicit: [37], :initiative3:•<http://xwing-miniatures-second-edition.wikia.com/wiki/Palob_Godalhi|Palob Godalhi> :talent::illicit: [40], :initiative4:•<http://xwing-miniatures-second-edition.wikia.com/wiki/Dace_Bonearm|Dace Bonearm> :talent::illicit: [34]'
+    ]),
+    ('escapecraft', [
+        '_*Rigged Energy Cells:*_ During the System Phase, if you are not docked, lose 1 :charge:. At the end of the Activation Phase, if you have 0 :charge:, you are destroyed. Before you are removed, each ship at range 0-1 suffers 1 :crit: damage.',
+        ':scum: :initiative1:•<http://xwing-miniatures-second-edition.wikia.com/wiki/Autopilot_Drone|Autopilot Drone> :calculate: [12]',
+        '_*Co-Pilot:*_ While you are docked, your carrier ship has your pilot ability in addition to its own.',
+        ':scum: :initiative2:•<http://xwing-miniatures-second-edition.wikia.com/wiki/L3-37|L3-37> :talent::crew::modification: :calculate: [26], :initiative3:•<http://xwing-miniatures-second-edition.wikia.com/wiki/Outer_Rim_Pioneer|Outer Rim Pioneer> :talent::crew::modification: [28], :initiative4:•<http://xwing-miniatures-second-edition.wikia.com/wiki/Lando_Calrissian|Lando Calrissian> :talent::crew::modification: [29]',
+    ])
+])
+def test_list_pilots(testbot, ship, expected):
+    assert testbot.list_pilots(testbot.test_lookup(ship)) == expected
+
+@pytest.mark.parametrize('ship, pilot, expected', [
+    ('starviperclassattackplatform', None,
+     ':redfrontarc::attack3::greenagility::agility3::yellowhull::hull4::blueshield::shield1:  :focus:|:targetlock:|:barrelroll::linked::redfocus:|:boost::linked::redfocus:  :sensor::torpedo::modification::title:',
+    ),
+    ('starviperclassattackplatform', 'guri',
+     ':scum:  :initiative5::redfrontarc::attack3::greenagility::agility3::yellowhull::hull4::blueshield::shield1:  :calculate:|:targetlock:|:barrelroll::linked::redcalculate:|:boost::linked::redcalculate:  :talent::sensor::torpedo::modification::title:'
+    ),
+    ('m12lkimogilafighter', 'dalanoberos',
+     ':scum:  :initiative3::redfrontarc::attack3::greenagility::agility1::yellowhull::hull7::blueshield::shield2::orangecharge::charge2:  :focus:|:targetlock:|:redbarrelroll:|:reload:  :talent::torpedo::missile::astromech::illicit::modification:'
+    ),
+    ('t65xwing', 'lukeskywalker.1',
+     ':rebel:  :initiative5::redfrontarc::attack3::greenagility::agility2::yellowhull::hull4::blueshield::shield2::purpleforcecharge::forcecharge2recurring:  :focus:|:targetlock:|:barrelroll:  :torpedo::astromech::modification::forcepower::configuration:'
+    ),
+    ('kihraxzfighter', None,
+     ':redfrontarc::attack3::greenagility::agility2::yellowhull::hull5::blueshield::shield1:  :focus:|:targetlock:|:barrelroll:  :missile::illicit::illicit::modification::modification:'
+    )
+])
+def test_ship_stats(testbot, ship, pilot, expected):
+    ship = testbot.test_lookup(ship)
+    if pilot:
+        pilot = testbot.test_lookup(pilot)
+    assert testbot.ship_stats(ship, pilot) == expected
+
+@pytest.mark.parametrize('card, expected', [
+    ('munitionsfailsafe', '[1]'),
+    ('guri', '[64]'),
+    ('shieldupgrade', '[:greenagility::agility0:3:agility1:4:agility2:6:agility3:8]'),
+    ('engineupgrade', '[:smallbase:2:mediumbase:4:largebase:7]'),
+    ('bb8', '[:initiative0:2:initiative1:3:initiative2:4:initiative3:5:initiative4:6:initiative5:7:initiative6:8]'),
+])
+def test_print_cost(testbot, card, expected):
+    assert testbot.print_cost(testbot.test_lookup(card)['cost']) == expected
+
+
+@pytest.mark.parametrize('data, expected', [
+    ([
+        {"type": "slot", "value": "Torpedo", "amount": 1},
+        {"type": "slot", "value": "Missile", "amount": 1}
+    ], None),
+    ([{
+        "type": "action",
+        "value": {"type": "Calculate", "difficulty": "White"},
+        "amount": 1
+    }], [':calculate:']),
+    ([{"type": "stat", "value": "hull", "amount": 1}], [':yellowhull::hullplus1:']),
+    ([{"type": "stat", "value": "shields", "amount": 1}],
+     [':blueshield::shieldplus1:']),
+    ([
+        {"type": "stat", "value": "agility", "amount": -1},
+        {"type": "stat", "value": "shields", "amount": 2},
+        {"type": "stat", "value": "attack", "arc": "Front Arc", "amount": 1}
+    ], [
+        ':greenagility::agilityminus1:',
+        ':blueshield::shieldplus2:',
+        ':redattack::attackplus1:'
+    ]),
+])
+def test_print_grants(testbot, data, expected):
+    assert testbot.print_grants(data) == expected
+
+
+@pytest.mark.parametrize('card, expected', [
+    ('homingmissiles', ':redfrontarc::attack4::redrangebonusindicator:2-3'),
+    ('advprotontorpedoes', ':redfrontarc::attack5::redrangebonusindicator:1'),
+    ('dorsalturret', ':redsingleturretarc::attack2:1-2')
+])
+def test_print_attack(testbot, card, expected):
+    assert testbot.print_attack(testbot.test_lookup(
+        card)['sides'][0]['attack']) == expected
+
+
+@pytest.mark.parametrize('card, expected', [
+    ('seismiccharges', [
+        '*Seismic Charge* (Bomb)',
+        'At the end of the Activation Phase, this device detonates. When this device detonates, choose 1 obstacle at range 0-1. Each ship at range 0-1 of the obstacle suffers 1 :hit: damage. Then remove that obstacle.',
+    ]),
+])
+def test_print_device(testbot, card, expected):
+    assert testbot.print_device(testbot.test_lookup(
+        card)['sides'][0]['device']) == expected

@@ -1,43 +1,23 @@
 import copy
 from html import unescape
-from itertools import chain
+from itertools import chain, groupby
 import logging
 import re
 
-from r2d7.core import DroidCore, DroidException
+from r2d7.core import DroidCore, UserError
 
 logger = logging.getLogger(__name__)
-
-
-def long_substr(data):
-    """
-    From: https://stackoverflow.com/a/2894073/1424112
-    """
-    substr = ''
-    if len(data) > 1 and len(data[0]) > 0:
-        for i in range(len(data[0])):
-            for j in range(len(data[0])-i+1):
-                if j > len(substr) and all(data[0][i:i+j] in x for x in data):
-                    substr = data[0][i:i+j]
-    return substr
 
 
 class CardLookup(DroidCore):
     def __init__(self):
         super().__init__()
+        self.register_handler(r'\{\{(.*)\}\}', self.handle_image_lookup)
         self.register_handler(r'\[\[(.*)\]\]', self.handle_lookup)
+        self.register_dm_handler(r'\{\{(.*)\}\}', self.handle_image_lookup)
         self.register_dm_handler(r'(.*)', self.handle_lookup)
 
     _lookup_data = None
-
-    _processing_order = (
-        'upgrades',
-        'ships',
-        'pilots',
-        'conditions',
-        'damage-deck-core',
-        'damage-deck-core-tfa',
-    )
 
     _action_order = (
         'Focus',
@@ -53,121 +33,90 @@ class CardLookup(DroidCore):
         'SLAM',
         'Rotate Arc',
     )
-    @classmethod
-    def _action_key(cls, action):
-        try:
-            return cls._action_order.index(action)
-        except ValueError:
-            #TODO log an error?
-            return 100
 
     _slot_order = (
-        'Elite',
-        'System',
+        'Talent',
+        'Force Power',
+        'Sensor',
         'Cannon',
         'Turret',
         'Torpedo',
         'Missile',
-        'Crew',
-        'Astromech',
-        'Salvaged Astromech',
-        'Bomb',
         'Tech',
+        'Crew',
+        'Gunner',
+        'Astromech',
+        'Device',
         'Illicit',
-        'Hardpoint',
-        'Team',
-        'Cargo',
+        'Modification',
+        'Title',
+        'Configuration',
+        'Tactical Relay',
+        # 'Hardpoint',
+        # 'Team',
+        # 'Cargo',
     )
-    @classmethod
-    def _slot_key(cls, slot):
-        try:
-            return cls._slot_order.index(slot)
-        except ValueError:
-            #TODO log an error?
-            return 100
 
     _aliases = {
         'fcs': 'firecontrolsystem',
-        'apl': 'antipursuitlasers',
-        'atc': 'advancedtargetingcomputer',
         'ptl': 'pushthelimit',
         'hlc': 'heavylasercannon',
-        'tlt': 'twinlaserturret',
-        'vi': 'veteraninstincts',
         'at': 'autothrusters',
         'as': 'advancedsensors',
-        'acd': 'advancedcloakingdevice',
         'eu': 'engineupgrade',
         'tap': 'tieadvancedprototype',
-        'ac': 'accuracycorrector',
-        'abt': 'autoblasterturret',
         'sd': 'stealthdevice',
-        'ei': 'experimentalinterface',
-        'k4': 'k4securitydroid',
-        'stressbot': 'r3a2',
         'countesskturn': 'countessryad',
         'countesskturns': 'countessryad',
-        'countessgreenkturn': 'countessryad',
-        'bmst': 'blackmarketslicertools',
-        'snuggling': 'smugglingcompartment',
-        'snugglingcompartment': 'smugglingcompartment',
+        'ap': 'ap5',
+        'scyk': 'm3ainterceptor',
+        'terry': 'oldteroch',
+        'kirax': 'kihraxzfighter',
+        'kfighter': 'kihraxzfighter',
+        'sassy': 'saeseetiin',
+        'bulbasaur': 'belbullab22starfighter',
+        'baobab': 'belbullab22starfighter',
+        'bbb': 'belbullab22starfighter',
+        'bellyrub': 'belbullab22starfighter',
+        'bubblebub': 'belbullab22starfighter',
+        'hcp': 'haorchallprototype',
+        'hadrchallprototype': 'haorchallprototype'
     }
 
     def load_data(self):
         super().load_data()
         self._init_lookup_data()
 
-
     def _init_lookup_data(self):
         next_id = 0
         self._lookup_data = {}
-        self._name_to_xws = {}
-        for group in self._processing_order:
-            cards = self.data[group]
-            for name, cards in cards.items():
-                for card in cards:
-                    if group == 'conditions':
-                        card['slot'] = 'condition'
-                    elif group == 'ships':
-                        card['slot'] = card['xws']
-                        card['actions'].sort(key=self._action_key)
-                    elif 'damage-deck' in group:
-                        card['slot'] = 'crit'
-                        card['deck'] = 'TFA' if 'tfa' in group else 'Original'
-                    elif group == 'pilots':
-                        ships = self._lookup_data[
-                            self._name_to_xws[card['ship']]]
-                        if len(ships) > 1:
-                            raise DroidException(
-                                f"Duplicate ship found: {ships}")
-                        card['ship_card'] = ships[0]
+        for cards in self.data.values():
+            for card in cards.values():
+                name = self.partial_canonicalize(card['name'])
+                self._lookup_data.setdefault(name, []).append(card)
+                card['_id'] = next_id
+                next_id += 1
 
-                        # Add pilot to it's ship so we can list ship pilots
-                        card['ship_card'].setdefault('pilots', []).append(
-                            card)
+        for ship in self.data['ship'].values():
+            all_bars = [
+                pilot['slots']
+                for pilots in ship.get('pilots', []).values()
+                for pilot in pilots
+                if 'slots' in pilot
+            ]
+            try:
+                shortest = sorted(all_bars, key=len)[0]
+            except IndexError:  # No ships have bars
+                continue
+            ship_bar = []
+            for slot in shortest:
+                for bar in all_bars:
+                    if slot not in bar:
+                        break
+                else:
+                    ship_bar.append(slot)
+            ship['slots'] = ship_bar
 
-                        if 'ship_override' in card:
-                            card['ship_card'] = copy.copy(card['ship_card'])
-                            card['ship_card'].update(card['ship_override'])
-
-                        card['slots'].sort(key=self._slot_key)
-
-                        # Give ship slots if it doesn't have them
-                        try:
-                            skill = int(card['skill'])
-                            if card['ship_card'].get('_slot_skill', 13) > skill:
-                                card['ship_card']['_slot_skill'] = skill
-                                card['ship_card']['slots'] = card['slots']
-                        except ValueError:
-                            pass
-
-                        card['slot'] = card['ship_card']['xws']
-
-                    card['_id'] = next_id
-                    card['_group'] = group
-                    next_id += 1
-                    self._lookup_data.setdefault(name, []).append(card)
-                    self._name_to_xws[card['name']] = card['xws']
 
     _multi_lookup_pattern = re.compile(r'\]\][^\[]*\[\[')
     @property
@@ -186,7 +135,6 @@ class CardLookup(DroidCore):
             matches = []
             slot_filter = None
             points_filter = None
-            search = lookup
             match = self.filter_pattern.match(lookup)
             if not match:
                 match = (None, None, lookup, None, None, None)
@@ -195,12 +143,14 @@ class CardLookup(DroidCore):
             if match[2]:
                 lookup = self.partial_canonicalize(match[2])
                 if len(lookup) > 2 or re.match(r'[a-z]\d', lookup):
-                    ex_lookup = match[2].lower().strip()
+                    ex_lookup = re.escape(match[2].lower().strip())
                     # We want "hot shot" to match "Hot Shot Blaster" and
                     # "Hotshot Co-pilot"
                     ex_lookup = re.sub(r' ', ' ?', ex_lookup)
+                    # Fudge lookup for TIEs so you don't have to remember the /ln bit
+                    ex_lookup = re.sub(r'tie', 'tie.*', ex_lookup)
                     exact = re.compile(
-                        f'\\b{re.escape(ex_lookup)}(?:[\'e]?s)?\\b',
+                        f'\\b{ex_lookup}(?:[\'e]?s)?\\b',
                         re.IGNORECASE
                     )
                     matches = [
@@ -215,7 +165,7 @@ class CardLookup(DroidCore):
                     matches.append(self._aliases[lookup])
             else:
                 if not slot_filter:
-                    raise DroidException(
+                    raise UserError(
                         'You need to specify a slot to search by points value.')
                 matches = self._lookup_data.keys()
                 operator = '==' if match[3] == '=' else match[3]
@@ -227,20 +177,21 @@ class CardLookup(DroidCore):
                 for card in self._lookup_data[match]:
                     if card['_id'] in cards_yielded:
                         continue
-                    if slot_filter and self.iconify(card['slot']) != slot_filter:
+                    if slot_filter and 'ship' not in card and self.iconify(card['category']) != slot_filter:
                         continue
-                    if points_filter and not points_filter(card['points']):
+                    if slot_filter and 'ship' in card and self.iconify(card['ship']['name']) != slot_filter:
+                        continue
+                    if points_filter and not points_filter(card.get('cost', {}).get('value', 0)):
                         continue
 
                     cards_yielded.add(card['_id'])
                     yield card
 
                     if 'conditions' in card:
-                        for condition in chain.from_iterable(
-                                self.data['conditions'].values()):
+                        for condition in self.data['condition'].values():
                             if condition['_id'] in cards_yielded:
                                 continue
-                            if condition['name'] in card['conditions']:
+                            if condition['xws'] in card['conditions']:
                                 yield condition
                                 cards_yielded.add(condition['_id'])
 
@@ -248,6 +199,7 @@ class CardLookup(DroidCore):
         'Turret': 'turret',
         'Auxiliary Rear': 'frontback',
         'Auxiliary 180': '180',
+        'Bullseye': 'bullseye',
     }
 
     def ship_stats(self, ship, pilot=None):
@@ -255,15 +207,16 @@ class CardLookup(DroidCore):
         if pilot and 'faction' in pilot:
             line.append(self.iconify(pilot['faction']))
 
-        stats = ''
+        stats = []
         if pilot:
-            stats += self.iconify(f"skill{pilot['skill']}")
-        for stat in ('attack', 'energy', 'agility', 'hull', 'shields'):
-            if stat in ship:
-                # legacy naming
-                icon_name = 'shield' if stat == 'shields' else stat
-                stats += self.iconify(f"{icon_name}{ship[stat]}")
-        line.append(stats)
+            stats.append(self.iconify(f"initiative{pilot['initiative']}"))
+        for stat in ship['stats']:
+            stats.append(self.print_stat(stat))
+        if pilot and 'charges' in pilot:
+            stats.append(self.print_charge(pilot['charges']))
+        if pilot and 'force' in pilot:
+            stats.append(self.print_charge(pilot['force'], force=True))
+        line.append(''.join(stats))
 
         arcs = [self._arc_icons[arc] for arc in ship.get('firing_arcs', [])
                 if arc in self._arc_icons]
@@ -272,191 +225,369 @@ class CardLookup(DroidCore):
                 self.iconify(f"attack-{arc}", special_chars=True)
                 for arc in arcs))
 
-        if 'actions' in ship:
-            line.append(' '.join(
-                self.iconify(action) for action in ship['actions']))
+        if pilot and 'shipActions' in pilot:
+            line.append('|'.join(
+                self.print_action(action) for action in pilot['shipActions']
+            ))
+        elif 'actions' in ship:
+            line.append('|'.join(
+                self.print_action(action) for action in ship['actions']
+            ))
 
-        slots = None
+        if not pilot and 'slots' in ship:
+            line.append(''.join(self.iconify(slot) for slot in ship['slots']))
+
         if pilot and 'slots' in pilot:
-            slots = pilot['slots']
-        elif 'slots' in ship:
-            slots = ship['slots']
-        if slots:
-            line.append(''.join(self.iconify(slot) for slot in slots))
+            line.append(''.join(self.iconify(slot) for slot in pilot['slots']))
 
-        if 'epic_points' in ship:
-            line.append(self.iconify('epic') + str(ship['epic_points']))
+        return '  '.join(line)
 
-        return ' | '.join(line)
+    # Dialgen format defined here: http://xwvassal.info/dialgen/dialgen
+    maneuver_key = (
+        ('T', 'turnleft'),
+        ('B', 'bankleft'),
+        ('F', 'straight'),
+        ('N', 'bankright'),
+        ('Y', 'turnright'),
+        ('K', 'kturn'),
+        ('L', 'sloopleft'),
+        ('P', 'sloopright'),
+        ('E', 'trollleft'),
+        ('R', 'trollright'),
+        ('A', 'reversebankleft'),
+        ('S', 'reversestraight'),
+        ('D', 'reversebankright'),
+    )
+    stop_maneuver = ('O', 'stop')
 
-    difficulties = {
-        0: 'blank',
-        1: '',  # Default black icons are white for our purposes
-        2: 'green',
-        3: 'red',
+    difficulty_key = {
+        'R': 'red',
+        'W': '',
+        'G': 'green',
+        'B': 'blue',
     }
 
-    bearings = {
-        0: 'turnleft',
-        1: 'bankleft',
-        2: 'straight',
-        3: 'bankright',
-        4: 'turnright',
-        5: 'kturn',
-        6: 'sloopleft',
-        7: 'sloopright',
-        8: 'trollleft',
-        9: 'trollright',
-        10: 'reversebankleft',
-        11: 'reversestraight',
-        12: 'reversebankright',
-    }
-
-    def maneuvers(self, card):
-        # Find the longest row
-        longest = max(len(row) for row in card['maneuvers'])
-        # Check for blank columns so we can skip them
-        # (eg. a ship with sloops but no k-turn)
-        cols = []
-        for bearing in range(longest):
-            empty = True
-            for distance in card['maneuvers']:
-                try:
-                    if distance[bearing] != 0:
-                        empty = False
-                except IndexError:
+    def maneuvers(self, dial):
+        used_moves = {move[1] for move in dial}
+        dial = {speed: {move[1]: move[2] for move in moves}
+                for speed, moves in groupby(dial, lambda move: move[0])}
+        result = []
+        blank = self.iconify('blank')
+        for speed, moves in dial.items():
+            line = [speed + ' ']
+            for dialgen_move, droid_move in self.maneuver_key:
+                if dialgen_move not in used_moves:
                     continue
-            if not empty:
-                cols.append(bearing)
+                if speed == '0' and dialgen_move == 'F':
+                    dialgen_move, droid_move = self.stop_maneuver
+                if dialgen_move in moves:
+                    line.append(self.iconify(
+                        self.difficulty_key[moves[dialgen_move]] + droid_move
+                    ))
+                else:
+                    line.append(blank)
+            result.append(''.join(line))
+        return list(reversed(result))
 
-        lines = []
-        for distance in reversed(range(len(card['maneuvers']))):
-            line = [f"{distance} "]
-            no_bearings = True
-            for bearing in cols:
-                try:
-                    difficulty = card['maneuvers'][distance][bearing]
-                except IndexError:
-                    difficulty = 0
-                move = self.difficulties[difficulty]
-                if difficulty != 0:
-                    no_bearings = False
-                    move += 'stop' if distance == 0 else self.bearings[bearing]
-                line.append(self.iconify(move))
-            if not no_bearings:
-                lines.append(''.join(line))
-        return lines
+    def pilot_sort_key(self, pilot):
+        try:
+            return int(pilot['initiative']) + (pilot.get('cost', 0) / 200)
+        except ValueError:
+            # Put ?s at the end
+            return 9
+
+    @staticmethod
+    def has_calculate(pilot):
+        try:
+            for action in pilot['shipActions']:
+                if action['type'] == 'Calculate':
+                    return True
+        except KeyError:
+            pass
+        return False
 
     def list_pilots(self, ship):
-        factions = {}
-        pilots = sorted(ship['pilots'], key=lambda pilot: pilot['skill'])
-        for pilot in pilots:
-            skill = self.iconify(f"skill{pilot['skill']}")
-            unique = '• ' if pilot.get('unique', False) else ''
-            elite = ' ' + self.iconify('elite') if 'Elite' in pilot['slots'] else ''
-            name = self.format_name(pilot)
-            text = f"{skill}{unique}{name}{elite} [{pilot['points']}]"
-            factions.setdefault(pilot['faction'], []).append(text)
-        return [f"{self.iconify(faction)} {', '.join(pilots)}"
-                for faction, pilots in factions.items()]
+        ability_faction_pilot_map = {}
+        for faction, pilots in ship['pilots'].items():
+            for pilot in pilots:
+                ability = '\n'.join(self.print_ship_ability(pilot['shipAbility'])) if 'shipAbility' in pilot else None
+                ability_faction_pilot_map.setdefault(ability, {}).setdefault(faction, []).append(pilot)
+        out = []
+        for ability, factions in ability_faction_pilot_map.items():
+            if ability:
+                out.append(ability)
+            for faction, pilots in factions.items():
+                pilots = sorted(pilots, key=self.pilot_sort_key)
+                pilots_printed = []
+                for pilot in pilots:
+                    init = self.iconify(f"initiative{pilot['initiative']}")
+                    unique = '•' * pilot.get('limited', 0)
+                    slots = ''.join([
+                        self.iconify(slot) for slot in pilot.get('slots', [])
+                        if slot not in ship['slots']
+                    ])
+                    if slots:
+                        slots = ' ' + slots
+                    calculate = ' ' + self.iconify('calculate') if self.has_calculate(pilot) else ''
+                    name = self.format_name(pilot)
+                    pilots_printed.append(
+                        f"{init}{unique}{name}{slots}{calculate} [{pilot.get('cost', '?')}]")
+                out.append(f"{self.iconify(faction)} {', '.join(pilots_printed)}")
+        return out
 
-    def format_name(self, card):
+    def format_name(self, card, side=None):
+        if side is None:
+            side = card
         # There's no wiki pages for ships or crits
-        if card['_group'] == 'ships' or card['slot'] == 'crit':
+        if card['category'] in ('ships', 'damage', 'condition'):
             return card['name']
         else:
-            return self.wiki_link(
-                card['name'],
-                (
-                    card['slot'] == 'Crew' and (
-                        card['xws'] in self.data['pilots'] or
-                        card['xws'] == 'r2d2-swx22'
-                    )
-                )
-            )
+            return self.wiki_link(side.get('title', card['name']))
+            #TODO handle special cases
 
-    def ship_restriction(self, card):
-        """
-        Deal with the special cases in ship restrictions.
-        """
-        if isinstance(card['ship'], str):
-            restriction = card['ship']
-        elif len(card['ship']) == 1:
-            restriction = card['ship'][0]
+    def print_action(self, action):
+        difficulty = '' if action.get('difficulty', 'White') == 'White' else action['difficulty']
+        out = self.iconify(difficulty + action['type'])
+        if 'linked' in action:
+            out += self.iconify('linked') + self.print_action(action['linked'])
+        return out
+
+    stat_colours = {
+        "attack": "red",
+        "agility": "green",
+        "hull": "yellow",
+        "shield": "blue",
+        "charge": "orange",
+        "forcecharge": "purple",
+        "initiative": "initiative"
+    }
+
+    def print_stat(self, stat):
+        stat_type = stat['type']
+        if stat['type'] == 'shields':
+            stat_type = 'shield'
+        colour = self.stat_colours[stat_type]
+        if stat_type == 'attack':
+            out = self.iconify(f"red{stat['arc']}")
         else:
-            restriction = long_substr(card['ship'])
-            # If the longest common substring isn't a whole word, list the ship
-            # names instead
-            if not re.search(f"(^|\\W){restriction}(\\W|$)", card['ship'][0]):
-                restriction = ' and '.join(card['ship'])
-        return f"{restriction} only."
+            out = self.iconify(f"{colour}{stat_type}")
+        plus = 'plus' if stat.get('plus', False) else ''
+        recurring = 'recurring' if stat.get('recovers', False) else ''
+        out += self.iconify(f"{stat_type}{plus}{stat['value']}{recurring}")
+        return out
+
+    def print_charge(self, charge, force=False, plus=False):
+        charge['type'] = 'forcecharge' if force else 'charge'
+        charge['plus'] = plus
+        return self.print_stat(charge)
+
+    restriction_faction_map = {
+        'Galactic Empire': 'Imperial',
+        'Rebel Alliance': 'Rebel',
+        'Scum and Villainy': 'Scum',
+        'Separatist Alliance': 'Separatist',
+        'Galactic Republic': 'Republic',
+    }
+
+    def print_restrictions(self, restrictions):
+        ands = []
+        for restrict in restrictions:
+            ors = []
+            if 'action' in restrict:
+                ors.append(self.print_action(restrict['action']))
+            if 'factions' in restrict:
+                ors += [self.restriction_faction_map.get(faction, faction)
+                        for faction in restrict['factions']]
+            if 'ships' in restrict:
+                ors += [self.data['ship'][ship]['name']
+                        for ship in restrict['ships']]
+            if 'sizes' in restrict:
+                ors.append(' or '.join(restrict['sizes']) + ' ship')
+            if 'names' in restrict:
+                ors.append(
+                    f"squad including {' or '.join(restrict['names'])}")
+            if 'arcs' in restrict:
+                ors += [self.iconify(arc) for arc in restrict['arcs']]
+            if restrict.get('solitary', False):
+                ors.append('Solitary')
+            if restrict.get('non-limited', False):
+                ors.append('Non-Limited')
+            if 'equipped' in restrict:
+                ors.append(
+                    f"Equipped {''.join(self.iconify(slot) for slot in restrict['equipped'])}")
+            if 'force_side' in restrict:
+                ors += [f"{side.capitalize()} side" for side in restrict['force_side']]
+            if ors:
+                ands.append(' or '.join(ors))
+        if ands:
+            return self.italics('Restrictions: ' + ', '.join(ands))
+        return None
+
+
+    def print_ship_ability(self, ability):
+        lines = ability['text']
+        return [self.italics(self.bold(ability['name'] + ':')) + ' ' + lines[0]] + lines[1:]
+
+    def print_cost(self, cost):
+        try:
+            if 'variable' in cost:
+                out = ''
+                if cost['variable'] == 'shields':
+                    cost['variable'] = 'shield'
+                if cost['variable'] in self.stat_colours.keys():
+                    if cost['variable'] != self.stat_colours[cost['variable']]:
+                        out += self.iconify(
+                            f"{self.stat_colours[cost['variable']]}{cost['variable']}")
+                    icons = [self.iconify(f"{cost['variable']}{stat}")
+                            for stat in cost['values'].keys()]
+                elif cost['variable'] == 'size':
+                    icons = [self.iconify(f"{size}base")
+                            for size in cost['values'].keys()]
+                else:
+                    logger.warning(f"Unrecognised cost variable: {cost['variable']}")
+                    icons = ['?' for stat in cost['values']]
+                out += ''.join(
+                    f"{icon}{cost}" for icon, cost in zip(icons, cost['values'].values()))
+            else:
+                out = cost['value']
+        except TypeError:
+            out = cost
+        return f"[{out}]"
+
+    def print_grants(self, grants):
+        out = []
+        for grant in grants:
+            if grant['type'] == 'slot':
+                continue
+            elif grant['type'] == 'action':
+                out += [self.print_action(grant['value'])] * grant.get('amount', 1)
+            elif grant['type'] == 'stat':
+                stat = 'shield' if grant['value'] == 'shields' else grant['value']
+                symbol = 'minus' if grant['amount'] < 0 else 'plus'
+                out.append(
+                    self.iconify(f"{self.stat_colours[stat]}{stat}") +
+                    self.iconify(f"{stat}{symbol}{grant['amount']}")
+                )
+        return out if out else None
+
+    def print_attack(self, atk):
+        if atk['minrange'] != atk['maxrange']:
+            ranges = f"{atk['minrange']}-{atk['maxrange']}"
+        else:
+            ranges = str(atk['minrange'])
+        return (
+            self.iconify('red' + atk['arc']) +
+            self.iconify(f"attack{atk['value']}") +
+            (self.iconify('redrangebonusindicator')
+                if atk.get('ordnance', False) else '') +
+            ranges
+        )
 
     def print_card(self, card):
-        is_ship = card['_group'] == 'ships'
-        is_pilot = card['_group'] == 'pilots'
+        is_ship = card['category'] == 'ship'
+        is_pilot = card['category'] == 'pilot'
+        is_crit = card['category'] == 'damage'
+        is_remote = card['category'] == 'Remote'
+
+        if 'sides' not in card:
+            if is_pilot:
+                slot = card['ship']['xws']
+            elif is_crit:
+                slot = 'crit'
+            elif card['category'] == 'condition':
+                slot = 'condition'
+            elif is_remote:
+                slot = 'device'
+            else:
+                slot = card['xws']
+            fake_side = {'slots': [slot]}
+            if 'ability' in card:
+                fake_side['ability'] = card['ability']
+            if is_pilot and 'text' in card:
+                fake_side['text'] = card['text']
+            elif is_crit and 'text' in card:
+                fake_side['ability'] = card['text']
+            card['sides'] = [fake_side]
 
         text = []
-        text.append(''.join((
-            self.iconify(card['slot']),
-            ' • ' if card.get('unique', False) else ' ',
-            self.bold(self.format_name(card)),
-            f" [{card['points']}]" if 'points' in card else '',
-            f" ({card['deck']})" if 'deck' in card else '',
-        )))
+        for side in card['sides']:
+            text.append(' '.join(filter(len, (
+                ''.join(self.iconify(slot) for slot in side['slots']),
+                '•' * card.get('limited', 0),
+                self.bold(self.format_name(card, side)) +
+                (f": {self.italics(card['caption'])}" if 'caption' in card else ''),
+                self.print_cost(card['cost']) if 'cost' in card else '',
+                f"({card['deck']})" if 'deck' in card else '',
+                self.iconify(f"{card['size']}base") if 'size' in card else '',
+                "[Hyperspace]" if card.get('hyperspace', False) else '',
+            ))))
 
-        if is_pilot:
-            text.append(self.ship_stats(card['ship_card'], card))
-        elif is_ship:
-            text.append(self.ship_stats(card))
-        # New ships have empty manuevers lists so don't try and print them
-        if card.get('maneuvers', None):
-            text += self.maneuvers(card)
+            if 'restrictions' in card:
+                restrictions = self.print_restrictions(card['restrictions'])
+                if restrictions:
+                    text.append(restrictions)
+
+            if is_pilot:
+                text.append(self.ship_stats(card['ship'], card))
+            elif is_ship:
+                text.append(self.ship_stats(card))
+            elif is_remote:
+                text.append(self.ship_stats(card, card))
+
+            if 'ability' in side:
+                text += side['ability']
+
+            if 'text' in side:
+                text.append(self.italics(side['text']))
+
+            if 'shipAbility' in card:
+                text += self.print_ship_ability(card['shipAbility'])
+
+            last_line = []
+            if 'attack' in side:
+                last_line.append(self.print_attack(side['attack']))
+            if 'charges' in side:
+                last_line.append(self.print_charge(side['charges']))
+            if 'force' in side:
+                last_line.append(
+                    self.print_charge(side['force'], force=True, plus=True))
+            if 'grants' in side:
+                grants = self.print_grants(side['grants'])
+                if grants:
+                    last_line += grants
+            if last_line:
+                text.append(' | '.join(last_line))
+
+            if 'device' in side:
+                if side['device']['type'] == 'Remote':
+                    side['device']['category'] = 'Remote'
+                    side['device']['ability'] = side['device']['effect']
+                    text += self.print_card(side['device'])
+                else:
+                    text += self.print_device(side['device'])
+
+            if 'conditions' in side:
+                for condition in side['conditions']:
+                    text += self.print_card(self.data['condition'][condition])
+
+        if 'dial' in card:
+            text += self.maneuvers(card['dial'])
 
         if 'pilots' in card:
             text += self.list_pilots(card)
 
-        elif 'attack' in card or 'energy' in card:
-            line = []
-            if 'attack' in card:
-                attack_size = self.iconify(f"attack{card['attack']}")
-                line.append(f"{self.iconify('attack')}{attack_size}")
-            if 'range' in card:
-                line.append(f"Range: {card['range']}")
-            if 'energy' in card:
-                plus = 'plus' if card['slot'] == 'Title' else ''
-                energy_size = self.iconify(f"energy{plus}{card['energy']}")
-                line.append(f"{self.iconify('energy')}{energy_size}")
-            text.append(' | '.join(line))
-
-        restrictions = []
-        if 'ship' in card and not is_pilot:
-            restrictions.append(self.ship_restriction(card))
-
-        if card.get('limited', False):
-            restrictions.append('Limited.')
-
-        if 'size' in card and card['_group'] == 'upgrades':
-            sizes = [size.title() for size in card['size']]
-            restrictions.append(f"{' and '.join(sizes)} ship only.")
-
-        if 'faction' in card and not (is_ship or is_pilot):
-            faction = card['faction'].split(' ')[0]
-            if faction == 'Galactic':
-                faction = 'Imperial'
-            restrictions.append(f"{faction} only.")
-
-        if 'type' in card:
-            restrictions.append(card['type'])
-
-        if restrictions:
-            text.append(self.italics(' '.join(restrictions)))
-
-
-        if 'text' in card:
-            text += self.convert_html(card['text'])
-
         return text
 
+    def print_image(self, card):
+        text = []
+        if 'sides' not in card:
+            if 'image' in card:
+                text.append(card['image'])
+        else:
+            for side in card['sides']:
+                if 'image' in side:
+                    text.append(side['image'])
+        return text
 
     def handle_lookup(self, lookup):
         output = []
@@ -464,7 +595,23 @@ class CardLookup(DroidCore):
         for card in self.lookup(lookup):
             count += 1
             if count > 10:
-                return ['Your search matched more than 10 cards, please be '
-                        'more specific.']
-            output += self.print_card(card)
+                raise UserError(
+                    'Your search matched more than 10 cards, please be more specific.'
+                )
+            output.append(self.print_card(card))
         return output
+
+    def handle_image_lookup(self, lookup):
+        output = []
+        count = 0
+        for card in self.lookup(lookup):
+            count += 1
+            if count > 10:
+                raise UserError(
+                    'Your search matched more than 10 cards, please be more specific.'
+                )
+            output += self.print_image(card)
+        return [output]
+
+    def print_device(self, device):
+        return [f"{self.bold(device['name'])} ({device['type']})"] + device['effect']

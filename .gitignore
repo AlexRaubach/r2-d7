@@ -89,6 +89,7 @@ icons/env/
 update.ps1
 env.list
 icons/emoji/*.png
+icons/discord_emoji/*/*.png
 *.pyc
 *.sublime-workspace
 *.sublime-project
@@ -96,3 +97,7 @@ env*
 .cache
 r2d7.egg-info
 .coverage
+.env
+
+.pytest_cache
+.vscode/.ropeproject/objectdb
